@@ -1,0 +1,27 @@
+# Build artifacts
+*.obj
+*.res
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Compiled executable (optional - include if you want to distribute via Git)
+# ThemeToggle.exe
+
+# Test/temporary files
+*.lnk
+*.tmp
+~*
+
+# Visual Studio / IDE files
+.vs/
+*.suo
+*.user
+*.vcxproj
+*.vcxproj.filters
+*.sln
+
+# Windows thumbnail cache
+Thumbs.db
+desktop.ini
