@@ -62,6 +62,9 @@ copy /y setup.bat "%PACKAGE_DIR%\\" >nul
 copy /y uninstall.bat "%PACKAGE_DIR%\\" >nul
 copy /y Resources\\ThemeToggle.ico "%PACKAGE_RES%\\" >nul
 
+REM Ensure no loose executable remains in repository root
+if exist ThemeToggle.exe del ThemeToggle.exe
+
 echo.
 echo ===================================
 echo Build completed successfully!
