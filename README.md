@@ -186,6 +186,10 @@ HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
 1. `WM_SETTINGCHANGE` with `ImmersiveColorSet` for theme updates.
 2. `WM_SETTINGCHANGE` with `ColorizationColor` for taskbar and border updates.
 
+### Windows 11 Sync Helper
+
+`UxThemeHelper` loads three undocumented ordinals from `uxtheme.dll` (135=`SetPreferredAppMode`, 136=`FlushMenuThemes`, 104=`RefreshImmersiveColorPolicyState`). When the app detects Windows 11 it invokes these helpers after updating the registry so shell surfaces such as Widgets, context menus, and taskbar elements snap to the new theme instantly. If any ordinal is missing or fails, the helper no-ops and the standard broadcast path still completes.
+
 ### Compatibility
 
 - Windows 10 (1809+)
