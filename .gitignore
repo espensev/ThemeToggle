@@ -6,8 +6,9 @@
 *.exp
 *.lib
 
-# Compiled executable (optional - include if you want to distribute via Git)
-# ThemeToggle.exe
+# Compiled executable and deployment bundles
+ThemeToggle.exe
+deploy/
 
 # Test/temporary files
 *.lnk

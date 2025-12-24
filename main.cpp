@@ -74,7 +74,7 @@ private:
     UxThemeHelper uxtheme;
 
     // Detect Windows version
-    bool IsWindows11OrGreater() {
+    static bool IsWindows11OrGreater() {
         RegKey key;
         if (key.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ) != ERROR_SUCCESS) {
             return false;
@@ -119,9 +119,12 @@ private:
 
 public:
     WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = false)
-        : quiet(quiet), passThru(passThru), noKick(noKick), broadcaster(IsWindows11OrGreater()) {
-        
-        isWin11 = IsWindows11OrGreater();
+        : quiet(quiet),
+          passThru(passThru),
+          noKick(noKick),
+          hConsole(nullptr),
+          isWin11(IsWindows11OrGreater()),
+          broadcaster(isWin11) {
 
         // Load undocumented APIs for Windows 11
         if (isWin11) {

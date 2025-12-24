@@ -130,7 +130,14 @@ This process includes:
 1. Compiling resources (e.g., embedded icons).
 2. Compiling C++ source files.
 3. Linking with manifest and icon.
-4. Generating `ThemeToggle.exe` as a standalone executable.
+4. Copying deployment-ready files into `deploy\ThemeToggle`.
+5. Generating `ThemeToggle.exe` as a standalone executable (also copied into the deployment folder).
+
+After a successful build, the `deploy\ThemeToggle` folder (git-ignored so it stays local) contains everything needed for distribution:
+- `ThemeToggle.exe`
+- Launcher scripts (`ThemeToggle.vbs`, `ThemeToggle-Light.vbs`, `ThemeToggle-Dark.vbs`, `ThemeToggle.ps1`)
+- Setup helpers (`setup.bat`, `uninstall.bat`)
+- `Resources\ThemeToggle.ico` for shortcuts or shell customization.
 
 ### Manual Build
 ```batch
@@ -142,7 +149,7 @@ cl /EHsc /std:c++17 /W4 /O2 /MT main.cpp ThemeToggle.res /Fe:ThemeToggle.exe use
 ```
 
 ### Icon Attribution
-The embedded icon (`themetoggle_dark.ico`) visually represents the theme switching functionality.
+The embedded icon (`Resources\ThemeToggle.ico`) visually represents the theme switching functionality.
 
 The executable is built in Release mode with:
 - `/O2` - Optimizations for speed
