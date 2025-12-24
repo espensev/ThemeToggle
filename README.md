@@ -139,6 +139,13 @@ After a successful build, the `deploy\ThemeToggle` folder (git-ignored so it sta
 - Setup helpers (`setup.bat`, `uninstall.bat`)
 - `Resources\ThemeToggle.ico` for shortcuts or shell customization.
 
+To generate a zip file for releases run:
+```powershell
+.\scripts\package-release.ps1 [-VersionTag v1.2.3] [-Rebuild]
+```
+This creates `deploy\ThemeToggle-<tag>.zip` from the latest build artifacts (and optionally runs `build.bat` first when `-Rebuild` is passed).
+> Tip: only use `-Rebuild` from a Visual Studio Developer Command Prompt so `rc.exe`/`cl.exe` are on the PATH.
+
 ### Manual Build
 ```batch
 # 1. Compile resources
