@@ -47,20 +47,13 @@ ThemeToggle.exe /passthru
 ThemeToggle.exe /exitcode
 ```
 
-### Silent Execution
-
-For use with hotkeys, shortcuts, or automation:
-
-```vbscript
-' Double-click to toggle silently
-ThemeToggle.vbs
-
-' Force light mode silently  
-ThemeToggle-Light.vbs
-
-' Force dark mode silently
-ThemeToggle-Dark.vbs
-```
+### Shortcuts & Automation
+- Double-clicking `ThemeToggle.exe` toggles the theme (no console window).
+- Create shortcuts with explicit modes, e.g.:
+  - `ThemeToggle.exe /light /quiet`
+  - `ThemeToggle.exe /dark /quiet`
+  - `ThemeToggle.exe /quiet` (toggle silently)
+- Scheduled tasks can call the executable directly with the same arguments.
 
 **PowerShell alternative:**
 ```powershell
@@ -135,7 +128,7 @@ This process includes:
 
 After a successful build, the `deploy\ThemeToggle` folder (git-ignored so it stays local) contains everything needed for distribution:
 - `ThemeToggle.exe`
-- Launcher scripts (`ThemeToggle.vbs`, `ThemeToggle-Light.vbs`, `ThemeToggle-Dark.vbs`, `ThemeToggle.ps1`)
+- PowerShell launcher (`ThemeToggle.ps1`)
 - Setup helpers (`setup.bat`, `uninstall.bat`)
 - `Resources\ThemeToggle.ico` for shortcuts or shell customization.
 

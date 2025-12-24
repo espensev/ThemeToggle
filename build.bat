@@ -54,9 +54,6 @@ if exist "%PACKAGE_DIR%" rd /s /q "%PACKAGE_DIR%"
 mkdir "%PACKAGE_RES%" >nul 2>&1
 
 copy /y ThemeToggle.exe "%PACKAGE_DIR%\\" >nul
-copy /y ThemeToggle.vbs "%PACKAGE_DIR%\\" >nul
-copy /y ThemeToggle-Light.vbs "%PACKAGE_DIR%\\" >nul
-copy /y ThemeToggle-Dark.vbs "%PACKAGE_DIR%\\" >nul
 copy /y ThemeToggle.ps1 "%PACKAGE_DIR%\\" >nul
 copy /y setup.bat "%PACKAGE_DIR%\\" >nul
 copy /y uninstall.bat "%PACKAGE_DIR%\\" >nul
@@ -83,9 +80,7 @@ echo   UxThemeHelper      - Windows 11 undocumented APIs
 echo   Types.h            - Shared types and RAII wrappers
 echo.
 echo Available launchers:
-echo   ThemeToggle.vbs         - Silent toggle
-echo   ThemeToggle-Light.vbs   - Silent light mode
-echo   ThemeToggle-Dark.vbs    - Silent dark mode
+echo   ThemeToggle.exe         - CLI (/light, /dark, /quiet, /passthru)
 echo   ThemeToggle.ps1         - PowerShell version
 echo.
 

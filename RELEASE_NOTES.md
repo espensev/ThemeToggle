@@ -5,7 +5,7 @@
 **ThemeToggle.exe** - A utility for toggling Windows themes.
 
 ### Build Configuration
-- **Icon**: `themetoggle_dark.ico` (embedded)
+- **Icon**: `ThemeToggle.ico` (embedded)
 - **Compiler**: MSVC 19.44 (Visual Studio 2019+)
 - **C++ Standard**: C++17
 - **Optimizations**: `/O2` (speed)
@@ -15,7 +15,7 @@
 - **Architecture**: x86 (32-bit, compatible with x86 and x64 Windows)
 
 ### Embedded Resources
-- Custom dark theme icon (`themetoggle_dark.ico`)
+- Custom gradient icon (`ThemeToggle.ico`)
 - Windows manifest (DPI awareness, app declaration)
 - Version information (file properties)
 - Static runtime (no vcruntime DLL required)
@@ -43,9 +43,6 @@
 
 ### Core Files
 - `ThemeToggle.exe` - Main executable (~220 KB)
-- `ThemeToggle.vbs` - Silent launcher (no console window)
-- `ThemeToggle-Light.vbs` - Forces light mode silently
-- `ThemeToggle-Dark.vbs` - Forces dark mode silently
 - `ThemeToggle.ps1` - PowerShell alternative
 
 ### Setup & Tools
@@ -61,8 +58,8 @@
 
 ## Quick Start for End Users
 
-1. Download `ThemeToggle.exe` and the associated VBS files.
-2. Double-click `ThemeToggle.vbs` to toggle the theme silently.
+1. Download `ThemeToggle.exe`.
+2. Double-click the executable (or launch it with `/light`, `/dark`, `/quiet` arguments).
 3. Run `setup.bat` to configure hotkeys or automation.
 
 ## Build From Source
@@ -88,7 +85,7 @@ cl /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG main.cpp ThemeToggle.res /Fe:ThemeToggl
 - Broadcast operations surface failures via exit code `20` and emit a console warning so automation can react.
 
 ### User Experience
-- Silent VBS launchers to avoid console windows
+- Silent executable that can be invoked directly with `/quiet`
 - Theme switching in approximately 110ms
 - Custom icon for better identification
 - Hotkey support
@@ -97,7 +94,7 @@ cl /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG main.cpp ThemeToggle.res /Fe:ThemeToggl
 
 ## Icon Preview
 
-The `themetoggle_dark.ico` is used in:
+The `ThemeToggle.ico` is used in:
 - Windows Explorer (file icon)
 - Taskbar (when running)
 - Desktop shortcuts
@@ -106,14 +103,14 @@ The `themetoggle_dark.ico` is used in:
 
 ## Changes from Development Build
 
-| Feature         | Development         | Release             |
-|-----------------|---------------------|---------------------|
-| Icon            | `stars_astronomy...ico` | `themetoggle_dark.ico` |
-| Optimizations   | `/O2`              | `/O2`              |
-| Runtime         | `/MD` (dynamic)    | `/MT` (static)     |
-| Debug info      | Yes                | No (`/DNDEBUG`)    |
-| File size       | ~210 KB            | ~220 KB            |
-| Dependencies    | vcruntime DLL      | None               |
+| Feature         | Development             | Release             |
+|-----------------|-------------------------|---------------------|
+| Icon            | `stars_astronomy...ico` | `ThemeToggle.ico`   |
+| Optimizations   | `/O2`                   | `/O2`               |
+| Runtime         | `/MD` (dynamic)         | `/MT` (static)      |
+| Debug info      | Yes                     | No (`/DNDEBUG`)     |
+| File size       | ~210 KB                 | ~220 KB             |
+| Dependencies    | vcruntime DLL           | None                |
 
 ## Release Status
 
@@ -129,7 +126,7 @@ The `themetoggle_dark.ico` is used in:
 - [x] Embed custom icon
 - [x] Use static runtime (/MT)
 - [x] Test on a clean Windows installation
-- [x] Verify VBS launchers
+- [x] Verify CLI options (/light, /dark, /quiet)
 - [x] Test hotkey creation
 - [x] Test scheduled tasks
 - [x] Update documentation
@@ -140,5 +137,5 @@ This release provides a utility for toggling Windows themes with:
 - Efficient performance
 - Error handling
 - Portability as a standalone executable
-- Silent VBS launchers for automation
+- Shortcut-friendly CLI for automation
 - Comprehensive documentation.
