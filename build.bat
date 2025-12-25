@@ -1,18 +1,18 @@
 @echo off
-REM Build script for ThemeToggle.exe with refactored source files
+REM Build script for ThemeToggle.exe
 
 REM Save current directory and switch to script directory
 pushd "%~dp0"
 
-echo Building ThemeToggle (Release - Refactored)...
+echo Building ThemeToggle (Release)...
 echo.
 
 REM Clean previous build artifacts
 echo [0/4] Cleaning...
-del *.obj *.res "*.lnk" 2>nul
+del *.obj *.res 2>nul
 
 REM Step 1: Compile resource file
-echo [1/4] Compiling resources (with Resources\\ThemeToggle.ico)...
+echo [1/4] Compiling resources (Resources\ThemeToggle.ico)...
 rc ThemeToggle.rc
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Resource compilation failed!
@@ -43,45 +43,13 @@ echo [4/4] Cleaning up...
 del *.obj 2>nul
 del ThemeToggle.res 2>nul
 
-REM Organize deployable files into a dedicated folder
-set "DIST_DIR=deploy"
-set "PACKAGE_DIR=%DIST_DIR%\\ThemeToggle"
-set "PACKAGE_RES=%PACKAGE_DIR%\\Resources"
-
-echo.
-echo Packaging artifacts into %PACKAGE_DIR% ...
-if exist "%PACKAGE_DIR%" rd /s /q "%PACKAGE_DIR%"
-mkdir "%PACKAGE_RES%" >nul 2>&1
-
-copy /y ThemeToggle.exe "%PACKAGE_DIR%\\" >nul
-copy /y ThemeToggle.ps1 "%PACKAGE_DIR%\\" >nul
-copy /y setup.bat "%PACKAGE_DIR%\\" >nul
-copy /y uninstall.bat "%PACKAGE_DIR%\\" >nul
-copy /y Resources\\ThemeToggle.ico "%PACKAGE_RES%\\" >nul
-
-REM Ensure no loose executable remains in repository root
-if exist ThemeToggle.exe del ThemeToggle.exe
-
 echo.
 echo ===================================
 echo Build completed successfully!
 echo ===================================
 echo.
-echo Output: ThemeToggle.exe (Refactored + Optimized)
-echo   Size: ~220 KB (Release build with static runtime)
-echo   Icon: ThemeToggle.ico (embedded)
-echo   Package: %PACKAGE_DIR%
-echo.
-echo Source files:
-echo   main.cpp           - Entry point + orchestration
-echo   RegistryManager    - Registry operations
-echo   BroadcastManager   - Parallel broadcasts + stubborn apps
-echo   UxThemeHelper      - Windows 11 undocumented APIs
-echo   Types.h            - Shared types and RAII wrappers
-echo.
-echo Available launchers:
-echo   ThemeToggle.exe         - CLI (/light, /dark, /quiet, /passthru)
-echo   ThemeToggle.ps1         - PowerShell version
+echo Output: ThemeToggle.exe (~220 KB)
+echo Icon: Resources\ThemeToggle.ico
 echo.
 
 REM Restore original directory

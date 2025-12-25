@@ -97,11 +97,11 @@ goto SUCCESS
 :SHORTCUT
 echo.
 echo Creating desktop shortcut...
-set scriptPath=%CD%\ThemeToggle.vbs
+set exePath=%CD%\ThemeToggle.exe
 set desktopPath=%USERPROFILE%\Desktop
 set shortcutPath=%desktopPath%\Toggle Theme.lnk
 set iconPath=%CD%\ThemeToggle.exe
-powershell -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%shortcutPath%'); $s.TargetPath = 'wscript.exe'; $s.Arguments = '\"%scriptPath%\"'; $s.WorkingDirectory = '%CD%'; $s.IconLocation = '%iconPath%,0'; $s.Description = 'Toggle Windows Light/Dark Theme'; $s.Save()"
+powershell -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%shortcutPath%'); $s.TargetPath = '%exePath%'; $s.Arguments = '/quiet'; $s.WorkingDirectory = '%CD%'; $s.IconLocation = '%iconPath%,0'; $s.Description = 'Toggle Windows Light/Dark Theme'; $s.Save()"
 if exist "%shortcutPath%" (
     echo Desktop shortcut created.
     echo (Assign hotkey manually via shortcut properties)
@@ -114,18 +114,18 @@ if not "%choice%"=="4" pause & goto MENU
 goto STARTUP
 
 :SHORTCUT_AUTO
-set scriptPath=%CD%\ThemeToggle.vbs
+set exePath=%CD%\ThemeToggle.exe
 set desktopPath=%USERPROFILE%\Desktop
 set shortcutPath=%desktopPath%\Toggle Theme.lnk
 set iconPath=%CD%\ThemeToggle.exe
-powershell -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%shortcutPath%'); $s.TargetPath = 'wscript.exe'; $s.Arguments = '\"%scriptPath%\"'; $s.WorkingDirectory = '%CD%'; $s.IconLocation = '%iconPath%,0'; $s.Description = 'Toggle Windows Light/Dark Theme'; $s.Save()" >nul 2>&1
+powershell -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%shortcutPath%'); $s.TargetPath = '%exePath%'; $s.Arguments = '/quiet'; $s.WorkingDirectory = '%CD%'; $s.IconLocation = '%iconPath%,0'; $s.Description = 'Toggle Windows Light/Dark Theme'; $s.Save()" >nul 2>&1
 if exist "%shortcutPath%" echo [OK] Shortcut created.
 exit /b 0
 
 :STARTUP
 echo.
 echo Adding to Windows Startup...
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "ThemeToggle" /t REG_SZ /d "wscript.exe \"%CD%\ThemeToggle.vbs\"" /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "ThemeToggle" /t REG_SZ /d "\"%CD%\ThemeToggle.exe\" /quiet" /f >nul 2>&1
 if !errorlevel! equ 0 (
     echo Added to startup.
     echo.
@@ -137,7 +137,7 @@ if not "%choice%"=="4" pause & goto MENU
 goto SCHEDULED
 
 :STARTUP_AUTO
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "ThemeToggle" /t REG_SZ /d "wscript.exe \"%CD%\ThemeToggle.vbs\"" /f >nul 2>&1
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "ThemeToggle" /t REG_SZ /d "\"%CD%\ThemeToggle.exe\" /quiet" /f >nul 2>&1
 if !errorlevel! equ 0 echo [OK] Startup entry added.
 exit /b 0
 
@@ -145,9 +145,9 @@ exit /b 0
 echo.
 echo Creating scheduled tasks...
 echo.
-schtasks /create /tn "ThemeToggle-Morning" /tr "wscript.exe \"%CD%\ThemeToggle-Light.vbs\"" /sc daily /st 07:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Morning" /tr "\"%CD%\ThemeToggle.exe\" /light /quiet" /sc daily /st 07:00 /f >nul 2>&1
 if !errorlevel! equ 0 (echo [OK] Morning Light @ 07:00) else (echo [FAIL] Morning task)
-schtasks /create /tn "ThemeToggle-Evening" /tr "wscript.exe \"%CD%\ThemeToggle-Dark.vbs\"" /sc daily /st 19:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Evening" /tr "\"%CD%\ThemeToggle.exe\" /dark /quiet" /sc daily /st 19:00 /f >nul 2>&1
 if !errorlevel! equ 0 (echo [OK] Evening Dark @ 19:00) else (echo [FAIL] Evening task)
 echo.
 echo To modify times use Task Scheduler (taskschd.msc).
@@ -156,9 +156,9 @@ if not "%choice%"=="4" pause & goto MENU
 goto SUCCESS
 
 :SCHEDULED_AUTO
-schtasks /create /tn "ThemeToggle-Morning" /tr "wscript.exe \"%CD%\ThemeToggle-Light.vbs\"" /sc daily /st 07:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Morning" /tr "\"%CD%\ThemeToggle.exe\" /light /quiet" /sc daily /st 07:00 /f >nul 2>&1
 if !errorlevel! equ 0 echo [OK] Morning task created.
-schtasks /create /tn "ThemeToggle-Evening" /tr "wscript.exe \"%CD%\ThemeToggle-Dark.vbs\"" /sc daily /st 19:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Evening" /tr "\"%CD%\ThemeToggle.exe\" /dark /quiet" /sc daily /st 19:00 /f >nul 2>&1
 if !errorlevel! equ 0 echo [OK] Evening task created.
 exit /b 0
 
@@ -171,7 +171,7 @@ goto SUCCESS
 :TEST
 echo.
 echo Testing theme toggle...
-cscript //nologo ThemeToggle.vbs
+ThemeToggle.exe /quiet
 echo.
 echo If the theme changed the executable works.
 echo.

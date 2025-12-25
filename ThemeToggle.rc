@@ -1,7 +1,7 @@
 #include <windows.h>
 
-// Embed the application icon generated in Resources/
-1 ICON "Resources\\ThemeToggle.ico"
+// Embed the application icon
+1 ICON "themetoggle_dark.ico"
 
 // Embed the manifest
 1 RT_MANIFEST "ThemeToggle.manifest"

@@ -1,28 +1,88 @@
-# Build artifacts
+# ============================================================================
+# ThemeToggle .gitignore
+# ============================================================================
+
+# ===================
+# Build Artifacts
+# ===================
 *.obj
 *.res
-*.pdb
-*.ilk
-*.exp
-*.lib
-
-# Compiled executable and deployment bundles
-ThemeToggle.exe
-deploy/
-
-# Test/temporary files
+*.aps
 *.lnk
-*.tmp
-~*
+*.ilk
+*.pdb
 
-# Visual Studio / IDE files
+# Temporary resource compiler files
+RC[a-z]*[0-9]*
+RD[a-z]*[0-9]*
+
+# Old backups
+*.old
+*.bak
+*.exe.bak
+
+# ===================
+# IDE & Editors
+# ===================
+# Visual Studio
 .vs/
 *.suo
 *.user
-*.vcxproj
-*.vcxproj.filters
-*.sln
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
 
-# Windows thumbnail cache
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains
+.idea/
+*.iml
+
+# ===================
+# Build Output
+# ===================
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# ===================
+# Deployment
+# ===================
+deploy/*.zip.old
+deploy/temp/
+deploy/backup/
+
+# ===================
+# Windows
+# ===================
 Thumbs.db
-desktop.ini
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# ===================
+# Test Files
+# ===================
+test/
+tests/output/
+*.test.log
+
+# ===================
+# Misc
+# ===================
+*.swp
+*.swo
+*~
+.DS_Store

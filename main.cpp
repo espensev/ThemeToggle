@@ -74,27 +74,23 @@ private:
     UxThemeHelper uxtheme;
 
     // Detect Windows version
-    static bool IsWindows11OrGreater() {
-        static const bool cached = []() {
-            RegKey key;
-            if (key.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ) != ERROR_SUCCESS) {
-                return false;
-            }
-
-            wchar_t buildStr[32] = {};
-            DWORD dataSize = sizeof(buildStr);
-            DWORD type = 0;
-
-            if (RegQueryValueExW(key, L"CurrentBuild", nullptr, &type,
-                reinterpret_cast<LPBYTE>(buildStr), &dataSize) == ERROR_SUCCESS) {
-                int build = _wtoi(buildStr);
-                return build >= 22000;
-            }
-
+    bool IsWindows11OrGreater() {
+        RegKey key;
+        if (key.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ) != ERROR_SUCCESS) {
             return false;
-        }();
+        }
 
-        return cached;
+        wchar_t buildStr[32] = {};
+        DWORD dataSize = sizeof(buildStr);
+        DWORD type = 0;
+
+        if (RegQueryValueExW(key, L"CurrentBuild", nullptr, &type,
+            reinterpret_cast<LPBYTE>(buildStr), &dataSize) == ERROR_SUCCESS) {
+            int build = _wtoi(buildStr);
+            return build >= 22000;
+        }
+
+        return false;
     }
 
     void PrintMessage(const std::string& message, bool isWarning = false) {
@@ -123,12 +119,9 @@ private:
 
 public:
     WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = false)
-        : quiet(quiet),
-          passThru(passThru),
-          noKick(noKick),
-          hConsole(nullptr),
-          isWin11(IsWindows11OrGreater()),
-          broadcaster(isWin11) {
+        : quiet(quiet), passThru(passThru), noKick(noKick), broadcaster(IsWindows11OrGreater()) {
+        
+        isWin11 = IsWindows11OrGreater();
 
         // Load undocumented APIs for Windows 11
         if (isWin11) {
@@ -145,7 +138,7 @@ public:
         }
     }
 
-    ThemeInfo SetWindowsTheme(bool forceLight, bool forceDark) {
+    ThemeInfo SetWindowsTheme(bool forceLight, bool forceDark, bool /*toggle*/) {
 
         ThemeInfo info{};
         info.exitCode = ExitCode::SuccessNoChange;
@@ -298,7 +291,7 @@ void PrintUsage() {
 int RunThemeToggleCli(int argc, char* argv[]) {
     bool forceLight = false;
     bool forceDark = false;
-    [[maybe_unused]] bool toggle = false;
+    bool toggle = false;
     bool quiet = false;
     bool passThru = false;
     bool asExitCode = false;
@@ -339,15 +332,13 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         }
     }
 
-    if (forceLight && forceDark) {
-        std::cerr << "Cannot specify both /light and /dark." << std::endl;
-        PrintUsage();
-        return 1;
+    if (!forceLight && !forceDark && !toggle) {
+        toggle = true;
     }
 
     try {
         WindowsThemeToggler toggler(quiet, passThru, noKick);
-        ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark);
+        ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark, toggle);
         toggler.PrintThemeInfo(info);
 
         if (asExitCode) {
