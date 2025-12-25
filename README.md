@@ -83,6 +83,9 @@ build.bat
 - **Runtime:** Static (`/MT`) - no DLL dependencies
 - **Compatibility:** Windows 10 (1809+), Windows 11, Server 2019+
 - **Architecture:** x86 (runs on both 32-bit and 64-bit Windows)
+- **Compiler:** MSVC 19.44 (C++17)
+- **Optimizations:** `/O2` (speed)
+- **Size:** ~220 KB
 
 ## Registry Keys Modified
 
@@ -90,6 +93,25 @@ build.bat
 HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
 ??? SystemUsesLightTheme (DWORD) - 0=Dark, 1=Light
 ??? AppsUseLightTheme    (DWORD) - 0=Dark, 1=Light
+```
+
+## Project Structure
+
+```
+DarkToggle/
+??? Resources/
+?   ??? ThemeToggle.ico         # Application icon
+??? scripts/
+?   ??? launchers/              # VBS silent launchers
+?   ??? *.bat                   # Build utilities
+??? winget/                     # WinGet package manifests
+??? main.cpp                    # Entry point
+??? RegistryManager.*           # Registry operations
+??? BroadcastManager.*          # Theme change notifications
+??? UxThemeHelper.*             # Windows 11 API integration
+??? ThemeToggle.rc              # Resource script
+??? ThemeToggle.manifest        # Windows manifest
+??? build.bat                   # Build script
 ```
 
 ## License
