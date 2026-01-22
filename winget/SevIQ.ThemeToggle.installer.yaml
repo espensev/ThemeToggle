@@ -13,7 +13,7 @@ InstallModes:
 - silent
 - silentWithProgress
 UpgradeBehavior: install
-ReleaseDate: 2024-12-24
+ReleaseDate: 2026-01-17
 Installers:
 - Architecture: x64
   InstallerUrl: https://github.com/espensev/DarkToggle/releases/download/v1.2.0/ThemeToggle-Setup-1.2.0.exe
