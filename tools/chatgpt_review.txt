@@ -1,0 +1,33 @@
+You use std::addressof but don’t include <memory>
+Types.h shows #include <string> and #include <stdexcept> but not <memory>, while RegKey uses std::addressof(other). 
+
+ThemeToggle-SourceReview
+
+ThemeToggle-SourceReview
+
+
+MSVC might let this slide via transitive includes today… but that’s compiler-luck, not C++. Easiest fix: add #include <memory> (or replace with this != &other, since RegKey doesn’t overload operator&).
+
+operator HKEY() is still an “escape hatch”
+This doesn’t allow theft anymore, but it still allows misuse: external code can still do RegCloseKey(key) by implicit conversion, causing a double-close later when RegKey destructs. 
+
+ThemeToggle-SourceReview
+
+
+If you want the wrapper to be harder to abuse:
+
+make it explicit operator HKEY() const (forces a cast), or
+
+delete the conversion operator and provide HKEY Get() const.
+
+No [[nodiscard]] on Open/CreateOrOpen
+Not a correctness bug here (you check returns in call sites), but if you’re leaning into “structural correctness,” [[nodiscard]] LONG Open(...) helps stop future “oops I ignored the error” regressions.
+
+Prefix match does wcslen(app.className) inside the window loop
+Still totally fine at N=7, but if you’re collecting micro-optimizations like Pokémon: store prefix length in the table so you don’t recompute it per window. (Only matters if you end up expanding that list.)
+
+Small meta note
+
+Some earlier individual uploads can expire on my side, but your ThemeToggle-SourceReview.txt contains the full stitched snapshot, so this review is grounded on that single artifact. If you ever want a literal diff against an older revision, re-upload the old snapshot too.
+
+Net: solid cleanup. You turned “RAII” from a suggestion into a constraint, which is exactly how you win fights against future-you.

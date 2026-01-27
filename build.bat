@@ -4,6 +4,61 @@ REM Build script for ThemeToggle.exe
 REM Save current directory and switch to script directory
 pushd "%~dp0"
 
+REM Detect and setup Visual Studio Build Tools environment
+if not defined VSCMD_VER (
+    echo Setting up Build Tools environment...
+    
+    REM Try vswhere.exe first (official VS locator tool)
+    set "VSINSTALL="
+    set "VSWHERE=C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+    
+    if exist "%VSWHERE%" (
+        echo Using vswhere.exe to locate Visual Studio...
+        for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
+            set "VSINSTALL=%%i\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+    )
+    
+    REM Fallback: Try common hardcoded paths if vswhere fails
+    if not defined VSINSTALL (
+        echo vswhere.exe not found, trying common paths...
+        
+        REM VS 2026 (version 18)
+        if not defined VSINSTALL if exist "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            set "VSINSTALL=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+        if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" (
+            set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+        if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvarsall.bat" (
+            set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+        
+        REM VS 2022
+        if not defined VSINSTALL if exist "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            set "VSINSTALL=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+    )
+    
+    if not defined VSINSTALL (
+        echo ERROR: Visual Studio Build Tools not found!
+        echo Please install Visual Studio 2019/2022 Build Tools or run from Developer Command Prompt.
+        echo Download: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
+        popd
+        exit /b 1
+    )
+    
+    echo Found: %VSINSTALL%
+    call "%VSINSTALL%" x64 >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to initialize build environment
+        popd
+        exit /b 1
+    )
+    echo Environment initialized.
+    echo.
+)
+
 echo Building ThemeToggle (Release)...
 echo.
 
@@ -22,7 +77,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 REM Step 2: Compile C++ source files
 echo [2/4] Compiling source files...
-cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG main.cpp RegistryManager.cpp BroadcastManager.cpp UxThemeHelper.cpp
+cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG /I include src\main.cpp src\RegistryManager.cpp src\BroadcastManager.cpp src\UxThemeHelper.cpp
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Compilation failed!
     popd

@@ -37,7 +37,7 @@ dist/
 6. Display next steps
 
 **Output:**
-- `ThemeToggle-Setup-1.2.0.exe` (NSIS installer)
+- `ThemeToggle-Setup-1.3.0.exe` (NSIS installer)
 - `ThemeToggle-Portable.zip` (portable package)
 - `ThemeToggle.exe` (standalone)
 
@@ -64,6 +64,7 @@ cd dist
 
 - **[tools/cleanup.bat](../tools/cleanup.bat)** - Remove build artifacts
 - **[tools/validate.bat](../tools/validate.bat)** - Pre-commit validation
+- **[tools/signing/sign-release.ps1](../tools/signing/sign-release.ps1)** - Sign release artifacts
 
 ### 6. WinGet Manifests Updated
 - Release date updated to 2026-01-17
@@ -108,16 +109,19 @@ tools\validate.bat           # Pre-commit checks
 tools\cleanup.bat            # Clean artifacts
 ```
 
-### Release (3 Steps)
+### Release (4 Steps)
 ```batch
 # Step 1: Build everything
 dist\build-release.bat
 
-# Step 2: Update manifests
+# Step 2: Sign release artifacts
+tools\signing\sign-release.ps1
+
+# Step 3: Update manifests
 cd dist
 .\update-winget.ps1
 
-# Step 3: Publish
+# Step 4: Publish
 # - Create GitHub release
 # - Upload artifacts
 # - Submit WinGet PR
@@ -153,10 +157,12 @@ These files are now redundant (replaced by new structure):
 - [x] WinGet manifests (auto-updatable)
 - [x] Portable ZIP packaging
 - [x] Documentation
+- [x] Signing tooling (`tools/signing/sign-release.ps1`)
 
 ### Before WinGet Submission
 - [ ] Test NSIS installer on clean Windows 10/11
 - [ ] Run `dist\build-release.bat` successfully
+- [ ] Run `tools\signing\sign-release.ps1` to sign artifacts
 - [ ] Run `dist\update-winget.ps1` to fill SHA256/GUID
 - [ ] Create GitHub release v1.3.0 (or v1.2.1)
 - [ ] Upload installer to GitHub releases
@@ -171,7 +177,7 @@ These files are now redundant (replaced by new structure):
 
 ## 📦 What's in Each Package
 
-### NSIS Installer (`ThemeToggle-Setup-1.2.0.exe`)
+### NSIS Installer (`ThemeToggle-Setup-1.3.0.exe`)
 - ThemeToggle.exe
 - All launcher scripts (VBS, PS1)
 - Resources/ThemeToggle.ico
@@ -240,10 +246,10 @@ Existing:
 - Organized structure
 - Auto-updating manifests
 
-**Remaining 5%:** Code signing (optional, but recommended for enterprise adoption)
+**Remaining 5%:** Code signing certificate (required for signed distribution)
 
 ---
 
 **Date:** January 17, 2026  
 **Status:** Production Ready  
-**Next Action:** Test `dist\build-release.bat` and create GitHub release
+**Next Action:** Test `dist\build-release.bat`, sign artifacts, update manifests, and create GitHub release

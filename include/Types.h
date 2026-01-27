@@ -3,7 +3,7 @@
 #include <string>
 #include <stdexcept>
 
-// Exit code enum for clarity and type safety
+// Exit codes
 enum class ExitCode : int {
     SuccessNoChange = 0,
     ChangedToLight = 1,
@@ -14,7 +14,14 @@ enum class ExitCode : int {
     AlreadyRunning = 30
 };
 
-// Theme information result
+// Read status
+enum class RegistryStatus {
+    Success,
+    KeyNotFound,
+    AccessDenied
+};
+
+// Theme info
 struct ThemeInfo {
     DWORD oldSystemValue = 0;
     DWORD oldAppsValue = 0;
@@ -26,23 +33,22 @@ struct ThemeInfo {
     int stubbornAppsKicked = 0;
 };
 
-// RAII wrapper for registry keys
-struct RegKey {
-    HKEY hKey = nullptr;
-
+// RAII registry key
+class RegKey {
+public:
     RegKey() = default;
     RegKey(const RegKey&) = delete;
     RegKey& operator=(const RegKey&) = delete;
 
-    RegKey(RegKey&& other) noexcept : hKey(other.hKey) {
-        other.hKey = nullptr;
+    RegKey(RegKey&& other) noexcept : hKey_(other.hKey_) {
+        other.hKey_ = nullptr;
     }
 
     RegKey& operator=(RegKey&& other) noexcept {
-        if (std::addressof(other) != this) {
+        if (&other != this) {
             Close();
-            hKey = other.hKey;
-            other.hKey = nullptr;
+            hKey_ = other.hKey_;
+            other.hKey_ = nullptr;
         }
         return *this;
     }
@@ -53,35 +59,43 @@ struct RegKey {
 
     LONG Open(HKEY root, const wchar_t* path, REGSAM access) {
         Close();
-        return RegOpenKeyExW(root, path, 0, access, &hKey);
+        return RegOpenKeyExW(root, path, 0, access, &hKey_);
     }
 
     LONG CreateOrOpen(HKEY root, const wchar_t* path, REGSAM access) {
         Close();
         return RegCreateKeyExW(root, path, 0, nullptr,
-            REG_OPTION_NON_VOLATILE, access, nullptr, &hKey, nullptr);
+            REG_OPTION_NON_VOLATILE, access, nullptr, &hKey_, nullptr);
     }
 
-    operator HKEY() const { return hKey; }
-    bool IsValid() const { return hKey != nullptr; }
+    HKEY Get() const { return hKey_; }
+    explicit operator HKEY() const { return hKey_; }
+    bool IsValid() const { return hKey_ != nullptr; }
 
     void Close() {
-        if (hKey) {
-            RegCloseKey(hKey);
-            hKey = nullptr;
+        if (hKey_) {
+            RegCloseKey(hKey_);
+            hKey_ = nullptr;
         }
     }
+
+private:
+    HKEY hKey_ = nullptr;
 };
 
-// RAII wrapper for mutex
+// RAII mutex
 struct MutexGuard {
     HANDLE hMutex = nullptr;
     bool owned = false;
 
+    MutexGuard(const MutexGuard&) = delete;
+    MutexGuard& operator=(const MutexGuard&) = delete;
+
     explicit MutexGuard(const wchar_t* name) {
         hMutex = CreateMutexW(nullptr, FALSE, name);
         if (hMutex) {
-            DWORD result = WaitForSingleObject(hMutex, 50);
+            // Wait up to 2s
+            DWORD result = WaitForSingleObject(hMutex, 2000);
             if (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
                 owned = true;
             }
@@ -100,23 +114,33 @@ struct MutexGuard {
     bool IsOwned() const { return owned; }
 };
 
-// RAII wrapper for process priority boost
+// RAII priority boost
 struct PriorityBoost {
     DWORD oldPriority;
     HANDLE hProcess;
+    bool succeeded;
 
-    PriorityBoost() {
+    PriorityBoost(const PriorityBoost&) = delete;
+    PriorityBoost& operator=(const PriorityBoost&) = delete;
+
+    PriorityBoost() : oldPriority(0), hProcess(nullptr), succeeded(false) {
         hProcess = GetCurrentProcess();
         oldPriority = GetPriorityClass(hProcess);
-        SetPriorityClass(hProcess, HIGH_PRIORITY_CLASS);
+        
+        // Use ABOVE_NORMAL priority
+        if (SetPriorityClass(hProcess, ABOVE_NORMAL_PRIORITY_CLASS)) {
+            succeeded = true;
+        }
     }
 
     ~PriorityBoost() {
-        SetPriorityClass(hProcess, oldPriority);
+        if (succeeded && hProcess && oldPriority != 0) {
+            SetPriorityClass(hProcess, oldPriority);
+        }
     }
 };
 
-// Typed error that carries an ExitCode so callers can map failures precisely
+// Error with exit code
 class ThemeToggleError : public std::runtime_error {
 public:
     ThemeToggleError(const std::string& message, ExitCode code)

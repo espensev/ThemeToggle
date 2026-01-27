@@ -11,7 +11,7 @@
 ; ============================================================================
 
 !define PRODUCT_NAME "ThemeToggle"
-!define PRODUCT_VERSION "1.2.0"
+!define PRODUCT_VERSION "1.3.0"
 !define PRODUCT_PUBLISHER "SevIQ"
 !define PRODUCT_WEB_SITE "https://github.com/espensev/DarkToggle"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -109,18 +109,18 @@ Section "MainSection" SEC01
   
   ; Core files
   File "ThemeToggle.exe"
-  File "ThemeToggle.ps1"
+  File "dist\launchers\ThemeToggle.ps1"
   File "LICENSE.txt"
   File "README.md"
   
   ; Launcher scripts
-  File "scripts\launchers\ThemeToggle.vbs"
-  File "scripts\launchers\ThemeToggle-Light.vbs"
-  File "scripts\launchers\ThemeToggle-Dark.vbs"
+  File "dist\launchers\ThemeToggle.vbs"
+  File "dist\launchers\ThemeToggle-Light.vbs"
+  File "dist\launchers\ThemeToggle-Dark.vbs"
   
   ; Setup and uninstall scripts
-  File "deploy\ThemeToggle\setup.bat"
-  File "deploy\ThemeToggle\uninstall.bat"
+  File "setup.bat"
+  File "uninstall.bat"
   
   ; Resources folder
   SetOutPath "$INSTDIR\Resources"

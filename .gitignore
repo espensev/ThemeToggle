@@ -53,12 +53,16 @@ x86/
 [Ll]ogs/
 
 # ===================
+# Release Artifacts
+# ===================
+ThemeToggle.exe
+ThemeToggle-Setup-*.exe
+ThemeToggle-Portable*.zip
+
+# ===================
 # Deployment
 # ===================
-deploy/*.zip.old
-deploy/temp/
-deploy/backup/
-
+deploy/
 # ===================
 # Windows
 # ===================
@@ -78,6 +82,13 @@ $RECYCLE.BIN/
 test/
 tests/output/
 *.test.log
+
+# ===================
+# Generated Review Docs
+# ===================
+ThemeToggle-SourceReview.txt
+ThemeToggle-Headers.txt
+ThemeToggle-Sources.txt
 
 # ===================
 # Misc

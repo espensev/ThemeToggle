@@ -2,11 +2,12 @@
 # WinGet Manifest Updater
 # ============================================================================
 # Automatically updates WinGet manifests with real SHA256 hashes and GUID
-# Usage: .\update-winget.ps1 [-Version "1.2.0"] [-DryRun]
+# Usage: .\update-winget.ps1 [-Version "1.3.0"] [-DryRun]
+# Note: run after signing the installer so the SHA256 matches the signed binary.
 # ============================================================================
 
 param(
-    [string]$Version = "1.2.0",
+    [string]$Version = "1.3.0",
     [switch]$DryRun
 )
 

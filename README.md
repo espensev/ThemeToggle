@@ -54,7 +54,9 @@ schtasks /create /tn "Theme-Evening" /tr "\"C:\path\to\ThemeToggle.exe\" /dark /
 | `/dark` | Force dark theme |
 | `/toggle` | Toggle current theme (default) |
 | `/quiet` | Suppress console output |
+| `/passthru` | Output detailed status info |
 | `/exitcode` | Return status as exit code |
+| `/nokick` | Skip stubborn app notifications |
 
 ## Exit Codes
 
@@ -64,6 +66,7 @@ schtasks /create /tn "Theme-Evening" /tr "\"C:\path\to\ThemeToggle.exe\" /dark /
 | `1` | Changed to Light |
 | `2` | Changed to Dark |
 | `10` | Registry access failed |
+| `11` | Registry write failed |
 | `20` | Broadcast failed |
 | `30` | Already running |
 
@@ -73,7 +76,14 @@ schtasks /create /tn "Theme-Evening" /tr "\"C:\path\to\ThemeToggle.exe\" /dark /
 build.bat
 ```
 
-**Requirements:** Visual Studio 2019+ (MSVC), Windows SDK
+**Release pipeline:**
+```cmd
+dist\build-release.bat
+tools\signing\sign-release.ps1
+dist\update-winget.ps1
+```
+
+**Requirements:** Visual Studio 2019+ (MSVC), Windows SDK, NSIS (for installer)
 
 **Build output:** `ThemeToggle.exe` (~220 KB, no dependencies)
 
@@ -101,9 +111,15 @@ HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
 DarkToggle/
 ??? Resources/
 ?   ??? ThemeToggle.ico         # Application icon
-??? scripts/
-?   ??? launchers/              # VBS silent launchers
-?   ??? *.bat                   # Build utilities
+??? dist/
+?   ??? build-release.bat       # Release pipeline
+?   ??? update-winget.ps1       # WinGet manifest updater
+?   ??? launchers/              # VBS/PS1 silent launchers
+??? tools/
+?   ??? signing/
+?   ?   ??? sign-release.ps1        # Release signing
+?   ??? cleanup.bat             # Remove build artifacts
+?   ??? validate.bat            # Pre-commit validation
 ??? winget/                     # WinGet package manifests
 ??? main.cpp                    # Entry point
 ??? RegistryManager.*           # Registry operations
@@ -111,8 +127,10 @@ DarkToggle/
 ??? UxThemeHelper.*             # Windows 11 API integration
 ??? ThemeToggle.rc              # Resource script
 ??? ThemeToggle.manifest        # Windows manifest
+??? setup.nsi                   # NSIS installer
 ??? build.bat                   # Build script
 ```
+
 
 ## License
 

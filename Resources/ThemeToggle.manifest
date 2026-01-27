@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity
-    version="1.0.0.0"
+    version="1.5.0.0"
     processorArchitecture="*"
-    name="ThemeToggle"
+    name="SevIQ.ThemeToggle"
     type="win32"
   />
-  <description>Windows Theme Toggler - Light/Dark Mode Switcher</description>
+  <description>ThemeToggle by SevIQ - Windows Light/Dark Mode Switcher</description>
   
   <!-- Tell Windows we're a modern app for instant theme changes -->
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">

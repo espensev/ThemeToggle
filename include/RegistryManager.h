@@ -1,17 +1,18 @@
 #pragma once
 #include <windows.h>
+#include "Types.h"
 
 class RegistryManager {
 public:
-    RegistryManager();
+    RegistryManager() = default;
 
-    // Read current theme values
-    bool ReadTheme(DWORD& systemValue, DWORD& appsValue, bool& hasSystem, bool& hasApps);
+    // Read theme values
+    RegistryStatus ReadTheme(DWORD& systemValue, DWORD& appsValue, bool& hasSystem, bool& hasApps);
 
-    // Write theme values, reverting to previous state if a partial failure occurs
+    // Write values with rollback support
     bool WriteTheme(DWORD value, DWORD prevSystem, bool hadSystem);
 
-    // Flush registry changes to disk
+    // Flush to disk
     bool Flush();
 
 private:
@@ -19,7 +20,7 @@ private:
     static constexpr const wchar_t* SYSTEM_VALUE_NAME = L"SystemUsesLightTheme";
     static constexpr const wchar_t* APPS_VALUE_NAME = L"AppsUseLightTheme";
 
-    HKEY hKeyWrite = nullptr;
+    RegKey keyWrite_;
 
     bool GetRegistryValue(HKEY hKey, const wchar_t* valueName, DWORD& outValue);
     bool SetRegistryValue(HKEY hKey, const wchar_t* valueName, DWORD value);

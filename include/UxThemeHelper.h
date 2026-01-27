@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 
-// Undocumented uxtheme.dll functions for instant theme refresh (Windows 11)
+// Undocumented uxtheme.dll
 enum PreferredAppMode { Default, AllowDark, ForceDark, ForceLight, Max };
 typedef DWORD(WINAPI* fnSetPreferredAppMode)(PreferredAppMode appMode);
 typedef void (WINAPI* fnFlushMenuThemes)();
@@ -11,10 +11,10 @@ class UxThemeHelper {
 public:
     UxThemeHelper();
 
-    // Load undocumented APIs (call once at startup)
+    // Load APIs
     void LoadApis();
 
-    // Call APIs to sync theme instantly
+    // Sync theme
     void SyncTheme(bool isDark);
 
 private:

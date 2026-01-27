@@ -1,46 +1,46 @@
 #pragma once
 #include <windows.h>
-#include <atomic>
 #include "Types.h"
 
-// Stubborn apps that need extra notification kick
+// Stubborn app definition
 struct StubbornApp {
     const wchar_t* className;
     const wchar_t* windowTitle;
     UINT extraMessage;
     bool needsDirectPost;
+    bool prefixMatch;       // Prefix match
 };
 
 class BroadcastManager {
 public:
     explicit BroadcastManager(bool isWindows11);
 
-    // Main broadcast method - returns number of stubborn apps kicked
+    // Broadcast theme change
     int BroadcastThemeChange(bool isDark, bool enableKick = true);
 
-    // Whether any broadcast attempt failed during the last run
-    bool HadBroadcastFailure() const { return hadFailure.load(); }
+    // Last run failure status
+    bool HadBroadcastFailure() const { return hadFailure; }
 
 private:
     bool isWin11;
 
-    // Parallel broadcast methods
+    // Broadcasts
     void BroadcastSystemWindows(const wchar_t* message);
     void BroadcastGlobal();
     void NotifyDWM(bool isDark);
 
-    // Stubborn app handling
+    // Stubborn apps
     int KickStubbornApps();
     static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
 
-    // Helper
+    // Helpers
     void BroadcastToWindow(HWND hwnd, const wchar_t* message);
 
-    // Context for window enumeration
+    // Enum context
     struct EnumWindowsContext {
         BroadcastManager* manager = nullptr;
         int kickCount = 0;
     };
 
-    std::atomic_bool hadFailure{ false };
+    bool hadFailure = false;
 };

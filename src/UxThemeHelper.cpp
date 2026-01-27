@@ -3,12 +3,11 @@
 UxThemeHelper::UxThemeHelper() = default;
 
 void UxThemeHelper::LoadApis() {
-    // Use GetModuleHandle instead of LoadLibrary since uxtheme.dll is already loaded
-    // This avoids incrementing reference count and needing to call FreeLibrary
+    // Use existing handle
     HMODULE hUxTheme = GetModuleHandleW(L"uxtheme.dll");
     if (!hUxTheme) return;
 
-    // Ordinal-based loading (undocumented APIs)
+    // Load via ordinal
     SetPreferredAppMode = reinterpret_cast<fnSetPreferredAppMode>(
         GetProcAddress(hUxTheme, MAKEINTRESOURCEA(135)));
     FlushMenuThemes = reinterpret_cast<fnFlushMenuThemes>(
@@ -18,17 +17,17 @@ void UxThemeHelper::LoadApis() {
 }
 
 void UxThemeHelper::SyncTheme(bool isDark) {
-    // Force immediate theme policy refresh
+    // Refresh policy
     if (RefreshImmersiveColorPolicyState) {
         RefreshImmersiveColorPolicyState();
     }
 
-    // Flush all menu themes for instant context menu updates
+    // Flush menu themes
     if (FlushMenuThemes) {
         FlushMenuThemes();
     }
 
-    // Set preferred app mode (helps some apps detect theme instantly)
+    // Set preferred mode
     if (SetPreferredAppMode) {
         SetPreferredAppMode(isDark ? ForceDark : ForceLight);
     }

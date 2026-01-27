@@ -4,6 +4,24 @@ Detailed technical notes for each release.
 
 ---
 
+## Version 1.3.0 - "Distribution Pipeline" (2026-01-17)
+
+### Packaging and Distribution
+
+- Added NSIS installer script (`setup.nsi`) with optional shortcuts/startup/scheduled tasks
+- Added unified release pipeline (`dist/build-release.bat`)
+- Added WinGet manifest updater (`dist/update-winget.ps1`)
+- Consolidated launchers in `dist/launchers` and simplified tools in `tools/`
+- Added signing tooling (`tools/signing/sign-release.ps1`)
+- Added resource script (`ThemeToggle.rc`) for icon/manifest embedding
+- Documentation updates for release workflow
+
+### Behavior
+
+- No runtime behavior changes; performance remains 10-15ms
+
+---
+
 ## Version 1.2.0 - "Fire and Forget" (2024-12-24)
 
 ### ?? Performance Breakthrough

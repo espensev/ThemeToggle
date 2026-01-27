@@ -102,7 +102,7 @@ if not exist "deploy\ThemeToggle" mkdir "deploy\ThemeToggle"
 
 REM Copy core files
 copy /Y "ThemeToggle.exe" "deploy\ThemeToggle\" >nul
-copy /Y "ThemeToggle.ps1" "deploy\ThemeToggle\" >nul
+copy /Y "dist\launchers\ThemeToggle.ps1" "deploy\ThemeToggle\" >nul
 copy /Y "LICENSE.txt" "deploy\ThemeToggle\" >nul
 copy /Y "README.md" "deploy\ThemeToggle\" >nul
 
@@ -113,11 +113,7 @@ copy /Y "dist\launchers\ThemeToggle-Dark.vbs" "deploy\ThemeToggle\" >nul
 
 REM Copy setup scripts
 copy /Y "setup.bat" "deploy\ThemeToggle\" >nul
-if exist "deploy\ThemeToggle\uninstall.bat" (
-    REM Keep existing uninstall.bat
-) else (
-    echo Creating uninstall.bat...
-)
+copy /Y "uninstall.bat" "deploy\ThemeToggle\" >nul
 
 REM Copy Resources folder
 if not exist "deploy\ThemeToggle\Resources" mkdir "deploy\ThemeToggle\Resources"

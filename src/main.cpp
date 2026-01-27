@@ -10,35 +10,10 @@
 #include "RegistryManager.h"
 #include "BroadcastManager.h"
 #include "UxThemeHelper.h"
+#include "StringUtils.h"
 
 namespace {
 bool g_hasConsole = false;
-
-std::string WideToUtf8(const std::wstring& wide) {
-    if (wide.empty()) {
-        return {};
-    }
-    int required = WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    if (required <= 0) {
-        return {};
-    }
-    std::string utf8(static_cast<size_t>(required - 1), '\0');
-    WideCharToMultiByte(CP_UTF8, 0, wide.c_str(), -1, utf8.data(), required, nullptr, nullptr);
-    return utf8;
-}
-
-std::wstring Utf8ToWide(const std::string& text) {
-    if (text.empty()) {
-        return {};
-    }
-    int required = MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, nullptr, 0);
-    if (required <= 0) {
-        return {};
-    }
-    std::wstring wide(static_cast<size_t>(required - 1), L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, text.c_str(), -1, wide.data(), required);
-    return wide;
-}
 
 void EnsureConsoleStreams() {
     if (!g_hasConsole) {
@@ -53,7 +28,7 @@ void ShowGuiMessage(const std::string& text, UINT icon) {
     if (g_hasConsole) {
         return;
     }
-    auto wide = Utf8ToWide(text);
+    auto wide = StringUtils::Utf8ToWide(text);
     MessageBoxW(nullptr, wide.c_str(), L"ThemeToggle", MB_OK | icon);
 }
 }
@@ -66,14 +41,14 @@ private:
     bool quiet;
     bool passThru;
     bool noKick;
-    HANDLE hConsole;
+    HANDLE hConsole = nullptr;
     bool isWin11;
 
     RegistryManager registry;
     BroadcastManager broadcaster;
     UxThemeHelper uxtheme;
 
-    // Detect Windows version
+    // Windows version check
     bool IsWindows11OrGreater() {
         RegKey key;
         if (key.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ) != ERROR_SUCCESS) {
@@ -84,13 +59,20 @@ private:
         DWORD dataSize = sizeof(buildStr);
         DWORD type = 0;
 
-        if (RegQueryValueExW(key, L"CurrentBuild", nullptr, &type,
-            reinterpret_cast<LPBYTE>(buildStr), &dataSize) == ERROR_SUCCESS) {
-            int build = _wtoi(buildStr);
-            return build >= 22000;
+        if (RegQueryValueExW(key.Get(), L"CurrentBuild", nullptr, &type,
+            reinterpret_cast<LPBYTE>(buildStr), &dataSize) != ERROR_SUCCESS || type != REG_SZ) {
+            return false;
         }
 
-        return false;
+        // Validate build string format
+        for (size_t i = 0; buildStr[i] != L'\0'; ++i) {
+            if (!iswdigit(buildStr[i])) {
+                return false;
+            }
+        }
+
+        int build = _wtoi(buildStr);
+        return build >= 22000 && build < 100000;  // Sanity check
     }
 
     void PrintMessage(const std::string& message, bool isWarning = false) {
@@ -118,19 +100,21 @@ private:
     }
 
 public:
-    WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = false)
-        : quiet(quiet), passThru(passThru), noKick(noKick), broadcaster(IsWindows11OrGreater()) {
+WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = false)
+    : quiet(quiet)
+    , passThru(passThru)
+    , noKick(noKick)
+    , isWin11(IsWindows11OrGreater())
+    , broadcaster(isWin11) {
         
-        isWin11 = IsWindows11OrGreater();
+    // Load undocumented APIs for Windows 11
+    if (isWin11) {
+        uxtheme.LoadApis();
+    }
 
-        // Load undocumented APIs for Windows 11
-        if (isWin11) {
-            uxtheme.LoadApis();
-        }
-
-        // Cache console handle
-        hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (hConsole != INVALID_HANDLE_VALUE && hConsole != nullptr) {
+    // Cache console handle
+    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hConsole != INVALID_HANDLE_VALUE && hConsole != nullptr) {
             DWORD mode;
             if (!GetConsoleMode(hConsole, &mode)) {
                 hConsole = nullptr;
@@ -138,12 +122,12 @@ public:
         }
     }
 
-    ThemeInfo SetWindowsTheme(bool forceLight, bool forceDark, bool /*toggle*/) {
+    ThemeInfo SetWindowsTheme(bool forceLight, bool forceDark) {
 
         ThemeInfo info{};
         info.exitCode = ExitCode::SuccessNoChange;
 
-        // Mutex to prevent concurrent toggles
+        // Prevent concurrent instances
         MutexGuard mutex(MUTEX_NAME);
         if (!mutex.IsOwned()) {
             if (!quiet) {
@@ -153,7 +137,7 @@ public:
             return info;
         }
 
-        // Boost process priority for faster execution
+        // Boost process priority
         PriorityBoost priorityBoost;
 
         // Read current theme
@@ -162,17 +146,19 @@ public:
         bool hasSystem = false;
         bool hasApps = false;
 
-        if (!registry.ReadTheme(currSystem, currApps, hasSystem, hasApps)) {
-            throw ThemeToggleError("Failed to read registry", ExitCode::RegKeyCreateFailed);
+        RegistryStatus readStatus = registry.ReadTheme(currSystem, currApps, hasSystem, hasApps);
+        if (readStatus == RegistryStatus::AccessDenied) {
+            throw ThemeToggleError("Failed to read registry (access denied)", ExitCode::RegKeyCreateFailed);
         }
 
+        // Default to dark theme if key missing
         if (!hasSystem) currSystem = 0;
         if (!hasApps) currApps = 0;
 
         info.oldSystemValue = currSystem;
         info.oldAppsValue = currApps;
 
-        // Decide new target value
+        // Determine target value
         DWORD newValue;
         if (forceLight) {
             newValue = 1;
@@ -184,7 +170,7 @@ public:
             newValue = (currSystem == 1) ? 0 : 1;
         }
 
-        // Check if change needed
+        // Check for required changes
         bool needsSystemChange = !hasSystem || currSystem != newValue;
         bool needsAppsChange = !hasApps || currApps != newValue;
         bool requiresWrite = needsSystemChange || needsAppsChange;
@@ -215,17 +201,17 @@ public:
             throw ThemeToggleError("Failed writing theme values", ExitCode::RegWriteFailed);
         }
 
-        // Force immediate flush
+        // Force flush
         if (!registry.Flush()) {
             throw ThemeToggleError("Failed to flush theme values", ExitCode::RegWriteFailed);
         }
 
-        // Call uxtheme APIs for Windows 11 (parallel with broadcasts)
+        // Sync via uxtheme for Windows 11
         if (isWin11) {
             uxtheme.SyncTheme(isDark);
         }
 
-        // Broadcast theme change (parallel execution + stubborn app kick)
+        // Broadcast change and kick stubborn apps
         int kicked = broadcaster.BroadcastThemeChange(isDark, !noKick);
         info.stubbornAppsKicked = kicked;
         info.broadcastOk = !broadcaster.HadBroadcastFailure();
@@ -297,7 +283,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     bool asExitCode = false;
     bool noKick = false;
 
-    // Parse command-line arguments
+    // Parse arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
@@ -332,13 +318,18 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         }
     }
 
+    if (forceLight && forceDark) {
+        std::cerr << "Error: /light and /dark cannot be used together." << std::endl;
+        return 1;
+    }
+
     if (!forceLight && !forceDark && !toggle) {
         toggle = true;
     }
 
     try {
         WindowsThemeToggler toggler(quiet, passThru, noKick);
-        ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark, toggle);
+        ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark);
         toggler.PrintThemeInfo(info);
 
         if (asExitCode) {
@@ -386,7 +377,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     std::vector<std::string> narrow(argc);
     std::vector<char*> argv(argc);
     for (int i = 0; i < argc; ++i) {
-        narrow[i] = WideToUtf8(argvW[i] ? argvW[i] : L"");
+        narrow[i] = StringUtils::WideToUtf8(argvW[i] ? argvW[i] : L"");
         argv[i] = narrow[i].data();
     }
 

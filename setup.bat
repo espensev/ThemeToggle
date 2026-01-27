@@ -213,7 +213,7 @@ exit /b 0
 :END
 echo.
 echo Exiting setup.
-echo For more information see AUTOMATION_GUIDE.md
+echo For more information see README.md
 echo.
 popd
 endlocal

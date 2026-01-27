@@ -1,28 +1,26 @@
 #include "RegistryManager.h"
 #include "Types.h"
 
-RegistryManager::RegistryManager() = default;
-
-bool RegistryManager::ReadTheme(DWORD& systemValue, DWORD& appsValue, bool& hasSystem, bool& hasApps) {
-    RegKey keyRead;
-    LONG result = keyRead.Open(HKEY_CURRENT_USER, REG_KEY_PATH, KEY_READ);
-
+RegistryStatus RegistryManager::ReadTheme(DWORD& systemValue, DWORD& appsValue, bool& hasSystem, bool& hasApps) {
     systemValue = 0;
     appsValue = 0;
     hasSystem = false;
     hasApps = false;
 
+    RegKey keyRead;
+    LONG result = keyRead.Open(HKEY_CURRENT_USER, REG_KEY_PATH, KEY_READ);
+
     if (result == ERROR_SUCCESS) {
-        hasSystem = GetRegistryValue(keyRead, SYSTEM_VALUE_NAME, systemValue);
-        hasApps = GetRegistryValue(keyRead, APPS_VALUE_NAME, appsValue);
-        return true;
-    }
-    else if (result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND) {
-        // Key doesn't exist - defaults to dark (0)
-        return true;
+        hasSystem = GetRegistryValue(keyRead.Get(), SYSTEM_VALUE_NAME, systemValue);
+        hasApps = GetRegistryValue(keyRead.Get(), APPS_VALUE_NAME, appsValue);
+        return RegistryStatus::Success;
     }
 
-    return false;
+    if (result == ERROR_FILE_NOT_FOUND || result == ERROR_PATH_NOT_FOUND) {
+        return RegistryStatus::KeyNotFound;
+    }
+
+    return RegistryStatus::AccessDenied;
 }
 
 bool RegistryManager::WriteTheme(DWORD value, DWORD prevSystem, bool hadSystem) {
@@ -33,35 +31,28 @@ bool RegistryManager::WriteTheme(DWORD value, DWORD prevSystem, bool hadSystem) 
         return false;
     }
 
-    bool systemUpdated = false;
-    if (!SetRegistryValue(keyWrite, SYSTEM_VALUE_NAME, value)) {
-        return false;
-    }
-    systemUpdated = true;
-
-    if (!SetRegistryValue(keyWrite, APPS_VALUE_NAME, value)) {
-        if (systemUpdated) {
-            RestoreValue(keyWrite, SYSTEM_VALUE_NAME, hadSystem, prevSystem);
-        }
+    if (!SetRegistryValue(keyWrite.Get(), SYSTEM_VALUE_NAME, value)) {
         return false;
     }
 
-    // Transfer ownership to member variable for later flush
-    // Nullify RegKey's handle to prevent double-close when destructor runs
-    hKeyWrite = keyWrite.hKey;
-    keyWrite.hKey = nullptr;  // Transfer ownership - prevent RegKey destructor from closing
+    if (!SetRegistryValue(keyWrite.Get(), APPS_VALUE_NAME, value)) {
+        RestoreValue(keyWrite.Get(), SYSTEM_VALUE_NAME, hadSystem, prevSystem);
+        return false;
+    }
 
+    // Transfer ownership for flush
+    keyWrite_ = std::move(keyWrite);
     return true;
 }
 
 bool RegistryManager::Flush() {
-    if (hKeyWrite) {
-        LONG result = RegFlushKey(hKeyWrite);
-        RegCloseKey(hKeyWrite);
-        hKeyWrite = nullptr;
-        return result == ERROR_SUCCESS;
-    }
-    return true;
+    if (!keyWrite_.IsValid()) return true;
+
+    LONG result = RegFlushKey(keyWrite_.Get());
+    // Unconditional close
+    keyWrite_.Close();
+
+    return result == ERROR_SUCCESS;
 }
 
 bool RegistryManager::GetRegistryValue(HKEY hKey, const wchar_t* valueName, DWORD& outValue) {
