@@ -123,25 +123,21 @@ struct MutexGuard {
 // RAII priority boost
 struct PriorityBoost {
     DWORD oldPriority;
-    HANDLE hProcess;
     bool succeeded;
 
     PriorityBoost(const PriorityBoost&) = delete;
     PriorityBoost& operator=(const PriorityBoost&) = delete;
 
-    PriorityBoost() : oldPriority(0), hProcess(nullptr), succeeded(false) {
-        hProcess = GetCurrentProcess();
-        oldPriority = GetPriorityClass(hProcess);
-        
-        // Use ABOVE_NORMAL priority
-        if (SetPriorityClass(hProcess, ABOVE_NORMAL_PRIORITY_CLASS)) {
+    PriorityBoost() : oldPriority(0), succeeded(false) {
+        oldPriority = GetPriorityClass(GetCurrentProcess());
+        if (oldPriority != 0 && SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS)) {
             succeeded = true;
         }
     }
 
     ~PriorityBoost() {
-        if (succeeded && hProcess && oldPriority != 0) {
-            SetPriorityClass(hProcess, oldPriority);
+        if (succeeded) {
+            SetPriorityClass(GetCurrentProcess(), oldPriority);
         }
     }
 };

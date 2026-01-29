@@ -19,9 +19,11 @@ void EnsureConsoleStreams() {
     if (!g_hasConsole) {
         return;
     }
-    FILE* dummy = nullptr;
-    if (freopen_s(&dummy, "CONOUT$", "w", stdout) != 0 ||
-        freopen_s(&dummy, "CONOUT$", "w", stderr) != 0) {
+    FILE* fp = nullptr;
+    if (freopen_s(&fp, "CONOUT$", "w", stdout) != 0) {
+        g_hasConsole = false;
+    }
+    if (freopen_s(&fp, "CONOUT$", "w", stderr) != 0) {
         g_hasConsole = false;
     }
 }
@@ -283,7 +285,6 @@ void PrintUsage() {
 int RunThemeToggleCli(int argc, char* argv[]) {
     bool forceLight = false;
     bool forceDark = false;
-    bool toggle = false;
     bool quiet = false;
     bool passThru = false;
     bool asExitCode = false;
@@ -304,7 +305,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
             forceDark = true;
         }
         else if (arg == "/toggle" || arg == "-toggle") {
-            toggle = true;
+            // Default behavior; accepted for explicitness
         }
         else if (arg == "/quiet" || arg == "-quiet") {
             quiet = true;
@@ -327,10 +328,6 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     if (forceLight && forceDark) {
         std::cerr << "Error: /light and /dark cannot be used together." << std::endl;
         return 1;
-    }
-
-    if (!forceLight && !forceDark && !toggle) {
-        toggle = true;
     }
 
     try {

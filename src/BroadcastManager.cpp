@@ -45,11 +45,6 @@ void BroadcastManager::BroadcastToWindow(HWND hwnd, const wchar_t* message) {
 void BroadcastManager::BroadcastSystemWindows(const wchar_t* message) {
     // Taskbar
     HWND hwndTaskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
-    if (!hwndTaskbar) {
-        // Explorer restart retry
-        Sleep(75);
-        hwndTaskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
-    }
     BroadcastToWindow(hwndTaskbar, message);
 
     // Notification area
@@ -71,11 +66,9 @@ void BroadcastManager::BroadcastSystemWindows(const wchar_t* message) {
 
 void BroadcastManager::NotifyDWM(bool isDark) {
     BOOL useDarkMode = isDark ? TRUE : FALSE;
-    HRESULT hr = DwmSetWindowAttribute(GetDesktopWindow(), DWMWA_USE_IMMERSIVE_DARK_MODE,
+    // Best-effort; DWM failure is not a broadcast failure
+    DwmSetWindowAttribute(GetDesktopWindow(), DWMWA_USE_IMMERSIVE_DARK_MODE,
         &useDarkMode, sizeof(useDarkMode));
-    if (FAILED(hr)) {
-        hadFailure = true;
-    }
 }
 
 void BroadcastManager::BroadcastGlobal() {

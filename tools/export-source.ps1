@@ -95,7 +95,7 @@ function Format-Header {
     $header += $separator
     $header += "  $Title"
     $header += "  Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-    $header += "  Repository: DarkToggle / ThemeToggle"
+    $header += "  Repository: ThemeToggle"
     $header += $separator
     $header += ""
     $header += "  TABLE OF CONTENTS"

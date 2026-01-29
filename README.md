@@ -108,7 +108,7 @@ HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
 ## Project Structure
 
 ```
-DarkToggle/
+ThemeToggle/
 ??? Resources/
 ?   ??? ThemeToggle.ico         # Application icon
 ??? dist/
