@@ -24,7 +24,7 @@ Detailed technical notes for each release.
 
 ## Version 1.2.0 - "Fire and Forget" (2024-12-24)
 
-### ?? Performance Breakthrough
+### Performance Breakthrough
 
 **83% faster execution** - Achieved theoretical minimum performance:
 - **Before:** 110ms total execution
@@ -147,30 +147,30 @@ All resources automatically cleaned up:
 ### What Updates When
 
 **Immediate (0-5ms):**
-- ? Taskbar background color
-- ? System tray icons
-- ? Context menus (uxtheme FlushMenuThemes)
-- ? Window titlebars (DWM)
+- Taskbar background color
+- System tray icons
+- Context menus (uxtheme FlushMenuThemes)
+- Window titlebars (DWM)
 
 **Very Fast (5-15ms):**
-- ? File Explorer
-- ? Settings app
-- ? Start menu
-- ? Action Center
+- File Explorer
+- Settings app
+- Start menu
+- Action Center
 
 **Fast (15-50ms):**
-- ? UWP apps
-- ? Modern Win32 apps
-- ? Background apps
+- UWP apps
+- Modern Win32 apps
+- Background apps
 
 **Acceptable (app-dependent):**
-- ?? Office apps (update on focus)
-- ?? Third-party apps (if they listen)
-- ?? Browsers (often require manual refresh)
+- Office apps (update on focus)
+- Third-party apps (if they listen)
+- Browsers (often require manual refresh)
 
 ### New Command-Line Options
 
-- `/nokick` - Skip stubborn app notifications (2-5ms faster, 95% ? 85% coverage)
+- `/nokick` - Skip stubborn app notifications (2-5ms faster, 95% to 85% coverage)
 
 ### Exit Codes
 
@@ -262,8 +262,8 @@ HWND hwndSecondary = FindWindowW(L"Shell_SecondaryTrayWnd", nullptr);
 Writes to:
 ```
 HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
-??? SystemUsesLightTheme
-??? AppsUseLightTheme
+  SystemUsesLightTheme
+  AppsUseLightTheme
 ```
 
 ### Broadcast Messages
@@ -288,7 +288,7 @@ Sends:
 | 1.1.0 | 70ms | 36% faster |
 | 1.2.0 | 10-15ms | **83-86% faster** |
 
-**Final result:** From 110ms to 10-15ms = **7-11x faster** ??
+**Final result:** From 110ms to 10-15ms = **7-11x faster**
 
 ---
 
@@ -320,11 +320,11 @@ Registry I/O:    5-6ms  (disk operations, unavoidable)
 uxtheme APIs:    <1ms   (syscalls)
 Broadcasts:      <1ms   (SendNotifyMessage overhead)
 Misc overhead:   3-4ms  (priority, console, function calls)
-??????????????????????
+-------------------------------------------------
 TOTAL:           ~10-12ms (theoretical minimum)
 ```
 
-**Current: 10-15ms** ? We've reached the limit!
+**Current: 10-15ms** - At the theoretical limit.
 
 ### Remaining Overhead
 
@@ -341,10 +341,10 @@ TOTAL:           ~10-12ms (theoretical minimum)
 
 ### Not Implemented (Overkill)
 
-- ? **Thread parallelism** - 1-2ms overhead negates savings
-- ? **GPU notifications** - Undocumented, complex
-- ? **Cached window handles** - Risky, windows can die
-- ? **5ms timeouts** - Less reliable, minimal gain
+- **Thread parallelism** - 1-2ms overhead negates savings
+- **GPU notifications** - Undocumented, complex
+- **Cached window handles** - Risky, windows can die
+- **5ms timeouts** - Less reliable, minimal gain
 
 ### Known Limitations
 
@@ -364,4 +364,4 @@ Performance optimizations inspired by:
 - Microsoft documentation and reverse engineering
 - Real-world testing and profiling
 
-**Special thanks to the Windows message queue - 30+ years of battle-tested reliability!** ??
+**Special thanks to the Windows message queue - 30+ years of battle-tested reliability.**

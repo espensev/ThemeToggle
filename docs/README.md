@@ -10,5 +10,5 @@ This folder contains technical documentation for developers and contributors.
 ## See Also
 
 - [../README.md](../README.md) - main user documentation
-- [../REORGANIZATION_COMPLETE.md](../REORGANIZATION_COMPLETE.md) - reorg summary and checklist
+- [REORGANIZATION.md](REORGANIZATION.md) - distribution pipeline docs
 - [../.github/RELEASE_TEMPLATE.md](../.github/RELEASE_TEMPLATE.md) - release template

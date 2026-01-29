@@ -1,4 +1,4 @@
-# ThemeToggle - Reorganization Complete ✓
+# ThemeToggle - Reorganization Complete
 
 ## New Structure
 
@@ -91,28 +91,11 @@ cd dist
 
 ---
 
-## What Can Be Deprecated
-
-### Redundant Files (can be removed after transition)
-- **scripts/package-release.ps1** → Replaced by [dist/build-release.bat](../dist/build-release.bat)
-- **scripts/validate-repository.bat** → Replaced by [tools/validate.bat](../tools/validate.bat)
-- **scripts/cleanup-workspace.bat** → Replaced by [tools/cleanup.bat](../tools/cleanup.bat)
-- **scripts/apply-branding.bat** → No longer needed (manifests already branded)
-- **scripts/rename-winget-manifests.bat** → Already completed
-- **scripts/reorganize-vbs-launchers.bat** → Already completed
-- **scripts/launchers/** → Replaced by [dist/launchers/](../dist/launchers/)
-
-### Files to Keep
-- **build.bat** - Core build script
-- **setup.bat** - User-facing setup script
-- **deploy/ThemeToggle/** - Deployment template
-- **winget/** - WinGet manifests
-
 ---
 
 ## Distribution Status: 95% → Complete
 
-### ✅ Now Complete
+### Complete
 - [x] NSIS installer script ([setup.nsi](../setup.nsi))
 - [x] Automated build pipeline ([dist/build-release.bat](../dist/build-release.bat))
 - [x] Automated manifest updates ([dist/update-winget.ps1](../dist/update-winget.ps1))
@@ -120,7 +103,7 @@ cd dist
 - [x] Simplified tools ([tools/](../tools/))
 - [x] Signing tooling ([tools/signing/sign-release.ps1](../tools/signing/sign-release.ps1))
 
-### ❌ Still Missing (5%)
+### Missing
 - [ ] Code signing certificate (for signed releases)
 
 ### Ready for Distribution

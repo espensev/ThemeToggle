@@ -1,6 +1,6 @@
 # ThemeToggle
 
-? Ultra-fast Windows theme switcher (10-15ms execution).
+Ultra-fast Windows theme switcher (10-15ms execution).
 
 ## Quick Start
 
@@ -26,7 +26,7 @@ winget install SevIQ.ThemeToggle
 
 ### Hotkey Setup
 1. Create desktop shortcut to `ThemeToggle.exe`
-2. Right-click ? Properties ? Shortcut key
+2. Right-click > Properties > Shortcut key
 3. Assign hotkey (e.g., `Ctrl+Alt+T`)
 4. Add `/quiet` to Target for silent operation
 
@@ -101,34 +101,40 @@ dist\update-winget.ps1
 
 ```
 HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
-??? SystemUsesLightTheme (DWORD) - 0=Dark, 1=Light
-??? AppsUseLightTheme    (DWORD) - 0=Dark, 1=Light
+  SystemUsesLightTheme (DWORD) - 0=Dark, 1=Light
+  AppsUseLightTheme    (DWORD) - 0=Dark, 1=Light
 ```
 
 ## Project Structure
 
 ```
 ThemeToggle/
-??? Resources/
-?   ??? ThemeToggle.ico         # Application icon
-??? dist/
-?   ??? build-release.bat       # Release pipeline
-?   ??? update-winget.ps1       # WinGet manifest updater
-?   ??? launchers/              # VBS/PS1 silent launchers
-??? tools/
-?   ??? signing/
-?   ?   ??? sign-release.ps1        # Release signing
-?   ??? cleanup.bat             # Remove build artifacts
-?   ??? validate.bat            # Pre-commit validation
-??? winget/                     # WinGet package manifests
-??? main.cpp                    # Entry point
-??? RegistryManager.*           # Registry operations
-??? BroadcastManager.*          # Theme change notifications
-??? UxThemeHelper.*             # Windows 11 API integration
-??? ThemeToggle.rc              # Resource script
-??? ThemeToggle.manifest        # Windows manifest
-??? setup.nsi                   # NSIS installer
-??? build.bat                   # Build script
+  src/                          Source files
+    main.cpp                    Entry point
+    RegistryManager.cpp         Registry operations
+    BroadcastManager.cpp        Theme notifications
+    UxThemeHelper.cpp           Windows 11 API
+  include/                      Headers
+    Types.h                     RAII wrappers, exit codes
+    RegistryManager.h
+    BroadcastManager.h
+    UxThemeHelper.h
+    StringUtils.h
+  Resources/
+    ThemeToggle.ico             Application icon
+    ThemeToggle.manifest        Windows manifest
+  dist/
+    build-release.bat           Release pipeline
+    update-winget.ps1           WinGet manifest updater
+    launchers/                  VBS/PS1 silent launchers
+  tools/
+    signing/sign-release.ps1    Release signing
+    cleanup.bat                 Remove build artifacts
+    validate.bat                Pre-commit validation
+  winget/                       WinGet package manifests
+  ThemeToggle.rc                Resource script
+  setup.nsi                     NSIS installer
+  build.bat                     Build script
 ```
 
 
