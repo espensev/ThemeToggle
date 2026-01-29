@@ -88,7 +88,7 @@ jobs:
           # Verify download
           if (Test-Path "wingetcreate.exe") {
             echo "wingetcreate installed successfully"
-            .\wingetcreate.exe --version
+            .\wingetcreate.exe version
           } else {
             Write-Error "Failed to download wingetcreate"
             exit 1
