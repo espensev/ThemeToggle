@@ -2,23 +2,47 @@
 
 This page covers local build, tooling, and benchmarking.
 
+## Quickstart
+
+1) Build the executable:
+```cmd
+build.bat
+```
+
+2) Run a quick help check:
+```cmd
+ThemeToggle.exe /?
+```
+
 ## Requirements
 
 - Windows 10/11
-- Visual Studio 2019+ (MSVC), Windows SDK
-- NSIS (only required for the installer)
+- Visual Studio Build Tools 2019+ (MSVC), Windows SDK
+- NSIS (only required for the installer / `dist\build-release.bat`)
 
-## Build
+Optional:
+- GitHub CLI (`gh`) if you trigger workflows locally
+
+## Build (Local)
 
 Build the standalone executable:
 ```cmd
 build.bat
 ```
 
-Build full release artifacts (exe + installer + ZIP; auto-signs if configured):
+Output: `ThemeToggle.exe` in the repo root.
+
+## Build (Release Artifacts)
+
+Build exe + installer + portable ZIP (auto-signs if configured):
 ```cmd
 dist\build-release.bat
 ```
+
+Outputs:
+- `ThemeToggle.exe`
+- `ThemeToggle-Setup-<version>.exe` (if NSIS is available)
+- `ThemeToggle-Portable.zip`
 
 ## Tooling
 
@@ -52,3 +76,16 @@ Export for another machine:
 ```powershell
 .\tools\export-bench.ps1 -Zip
 ```
+
+## Troubleshooting
+
+### Visual Studio Build Tools not found
+`build.bat` looks for `vswhere.exe` and common VS install paths. Fix by:
+- Installing Visual Studio Build Tools 2019/2022, or
+- Running from a Developer Command Prompt, or
+- Installing VS where it can be discovered.
+
+### NSIS not found
+`dist\build-release.bat` skips the installer if `makensis` is not on PATH. Fix by:
+- Installing NSIS, or
+- Adding `C:\Program Files (x86)\NSIS` to PATH.

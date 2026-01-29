@@ -2,6 +2,23 @@
 
 This page covers the release pipeline and WinGet publishing (manual and automated).
 
+## Pre-Release Checklist
+
+1) Bump version:
+```powershell
+.\tools\bump-version.ps1 -Version 1.5.2
+```
+
+2) Update release notes (optional but recommended):
+- Add a new entry to `docs/RELEASE_NOTES.md`
+
+3) Regenerate WinGet manifests (updates SHA256 + ProductCode):
+```powershell
+dist\update-winget.ps1
+```
+
+4) Commit changes on `main`.
+
 ## Automated Release (GitHub Actions)
 
 Push a version tag to trigger the full release pipeline:
@@ -16,6 +33,10 @@ Pipeline behavior:
 3. Creates a GitHub Release
 4. Triggers WinGet publish
 
+Notes:
+- The Release workflow verifies `VERSION` matches the tag.
+- The WinGet publish workflow runs only if Release succeeds.
+
 ### First-Time Setup (One-Time)
 
 1. Create a **classic** GitHub PAT (fine-grained PATs do not work for winget-pkgs):
@@ -27,6 +48,18 @@ Pipeline behavior:
 4. Ensure `winget/` manifests are current:
    - Run `dist\update-winget.ps1`
    - Commit the updated manifests
+
+### Signing (Optional)
+
+If a signing cert is available, the pipeline will auto-sign:
+- `THEMETOGGLE_SIGN_CERT_THUMBPRINT` (recommended)
+- or `THEMETOGGLE_SIGN_PFX_PATH` + `THEMETOGGLE_SIGN_PFX_PASSWORD`
+
+Optional:
+- `THEMETOGGLE_SIGN_TIMESTAMP_URL`
+- `THEMETOGGLE_SIGN_DESCRIPTION`
+
+See `tools/signing/README.md` for details.
 
 ### Manual Trigger
 
@@ -96,3 +129,9 @@ Invoke-WebRequest -Uri "https://github.com/espensev/ThemeToggle/releases/downloa
 - Use a **classic** PAT (fine-grained tokens do not work)
 - Scope must include `public_repo`
 - The PAT owner must have forked `microsoft/winget-pkgs`
+- `GITHUB_TOKEN` is auto-provided by Actions; `WINGET_GITHUB_TOKEN` must be a repo secret
+
+### WinGet publish cannot reach GitHub
+If `wingetcreate` reports connectivity issues:
+- Verify the PAT is valid and not expired
+- Re-run the workflow after updating the secret

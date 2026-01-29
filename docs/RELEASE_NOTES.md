@@ -4,6 +4,33 @@ Detailed technical notes for each release.
 
 ---
 
+## How to Update
+
+- Add the newest entry at the top (after this section).
+- Include a date and a short codename if helpful.
+- Focus on user-visible behavior, performance, and tooling changes.
+- If a change is build/packaging-only, say so explicitly.
+
+### Template
+
+```
+## Version x.y.z - "Codename" (YYYY-MM-DD)
+
+### Highlights
+- ...
+
+### Behavior
+- ...
+
+### Packaging / Tooling
+- ...
+
+### Notes
+- ...
+```
+
+---
+
 ## Version 1.3.0 - "Distribution Pipeline" (2026-01-17)
 
 ### Packaging and Distribution
