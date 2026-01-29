@@ -1,0 +1,225 @@
+# Release Workflow
+# Creates full release artifacts when a version tag is pushed
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+          echo "Releasing version: $version"
+        shell: pwsh
+
+      - name: Verify VERSION file matches tag
+        run: |
+          $expected = "${{ steps.version.outputs.VERSION }}"
+          $actual = (Get-Content "VERSION" -Raw).Trim()
+
+          if ($expected -ne $actual) {
+            Write-Error "VERSION file ($actual) does not match tag ($expected)"
+            exit 1
+          }
+          echo "Version verified: $actual"
+        shell: pwsh
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup Visual Studio Dev Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install NSIS
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
+        shell: pwsh
+
+      - name: Build executable
+        run: |
+          echo "Building ThemeToggle.exe..."
+
+          # Clean
+          Remove-Item -Force *.obj, *.res -ErrorAction SilentlyContinue
+
+          # Compile resources
+          rc ThemeToggle.rc
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          # Compile source
+          cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG /I include src\main.cpp src\RegistryManager.cpp src\BroadcastManager.cpp src\UxThemeHelper.cpp
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          # Link
+          link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /OUT:ThemeToggle.exe main.obj RegistryManager.obj BroadcastManager.obj UxThemeHelper.obj ThemeToggle.res user32.lib advapi32.lib dwmapi.lib shell32.lib
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          # Cleanup intermediate files
+          Remove-Item -Force *.obj, ThemeToggle.res -ErrorAction SilentlyContinue
+
+          $info = Get-Item "ThemeToggle.exe"
+          echo "Built: ThemeToggle.exe ($([math]::Round($info.Length/1KB)) KB)"
+        shell: pwsh
+
+      - name: Build NSIS installer
+        run: |
+          echo "Building NSIS installer..."
+          makensis /V2 setup.nsi
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $installer = "ThemeToggle-Setup-$version.exe"
+
+          if (Test-Path $installer) {
+            $info = Get-Item $installer
+            echo "Built: $installer ($([math]::Round($info.Length/1KB)) KB)"
+          } else {
+            Write-Error "Installer not found: $installer"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Create portable ZIP
+        run: |
+          echo "Creating portable package..."
+
+          # Create deploy folder
+          New-Item -ItemType Directory -Force -Path "deploy\ThemeToggle" | Out-Null
+          New-Item -ItemType Directory -Force -Path "deploy\ThemeToggle\Resources" | Out-Null
+
+          # Copy files
+          Copy-Item "ThemeToggle.exe" "deploy\ThemeToggle\" -Force
+          Copy-Item "dist\launchers\ThemeToggle.ps1" "deploy\ThemeToggle\" -Force
+          Copy-Item "LICENSE.txt" "deploy\ThemeToggle\" -Force
+          Copy-Item "README.md" "deploy\ThemeToggle\" -Force
+          Copy-Item "dist\launchers\ThemeToggle.vbs" "deploy\ThemeToggle\" -Force
+          Copy-Item "dist\launchers\ThemeToggle-Light.vbs" "deploy\ThemeToggle\" -Force
+          Copy-Item "dist\launchers\ThemeToggle-Dark.vbs" "deploy\ThemeToggle\" -Force
+          Copy-Item "setup.bat" "deploy\ThemeToggle\" -Force
+          Copy-Item "uninstall.bat" "deploy\ThemeToggle\" -Force
+          Copy-Item "Resources\ThemeToggle.ico" "deploy\ThemeToggle\Resources\" -Force
+
+          # Create ZIP
+          Compress-Archive -Path "deploy\ThemeToggle\*" -DestinationPath "ThemeToggle-Portable.zip" -Force
+
+          $info = Get-Item "ThemeToggle-Portable.zip"
+          echo "Built: ThemeToggle-Portable.zip ($([math]::Round($info.Length/1KB)) KB)"
+        shell: pwsh
+
+      - name: Calculate SHA256 hashes
+        id: hashes
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $installer = "ThemeToggle-Setup-$version.exe"
+
+          echo "SHA256 Hashes:"
+          echo "=============="
+
+          $exeHash = (Get-FileHash "ThemeToggle.exe" -Algorithm SHA256).Hash
+          echo "ThemeToggle.exe: $exeHash"
+          echo "EXE_SHA256=$exeHash" >> $env:GITHUB_OUTPUT
+
+          $installerHash = (Get-FileHash $installer -Algorithm SHA256).Hash
+          echo "${installer}: $installerHash"
+          echo "INSTALLER_SHA256=$installerHash" >> $env:GITHUB_OUTPUT
+
+          $zipHash = (Get-FileHash "ThemeToggle-Portable.zip" -Algorithm SHA256).Hash
+          echo "ThemeToggle-Portable.zip: $zipHash"
+          echo "ZIP_SHA256=$zipHash" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Validate winget manifests
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $installerHash = "${{ steps.hashes.outputs.INSTALLER_SHA256 }}"
+
+          echo "Validating WinGet manifests..."
+
+          # Check installer manifest has correct SHA256
+          $installerYaml = Get-Content "winget/SevIQ.ThemeToggle.installer.yaml" -Raw
+
+          if ($installerYaml -match "InstallerSha256:\s*$installerHash") {
+            echo "[OK] Installer SHA256 matches"
+          } else {
+            Write-Warning "Installer SHA256 in manifest does not match built artifact"
+            Write-Warning "Expected: $installerHash"
+            Write-Warning "Update manifest with: dist\update-winget.ps1"
+          }
+
+          # Check version
+          if ($installerYaml -match "PackageVersion:\s*$version") {
+            echo "[OK] Version matches: $version"
+          } else {
+            Write-Warning "Version mismatch in installer manifest"
+          }
+
+          # Check for placeholders
+          if ($installerYaml -match "REPLACE_WITH") {
+            Write-Error "Manifest contains placeholder values!"
+            exit 1
+          }
+
+          echo "WinGet manifest validation complete"
+        shell: pwsh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ThemeToggle v${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ThemeToggle.exe
+            ThemeToggle-Setup-${{ steps.version.outputs.VERSION }}.exe
+            ThemeToggle-Portable.zip
+          body: |
+            ## Downloads
+
+            | File | Description | SHA256 |
+            |------|-------------|--------|
+            | `ThemeToggle.exe` | Standalone executable (~220 KB) | `${{ steps.hashes.outputs.EXE_SHA256 }}` |
+            | `ThemeToggle-Setup-${{ steps.version.outputs.VERSION }}.exe` | NSIS Installer | `${{ steps.hashes.outputs.INSTALLER_SHA256 }}` |
+            | `ThemeToggle-Portable.zip` | Portable package | `${{ steps.hashes.outputs.ZIP_SHA256 }}` |
+
+            ## Installation
+
+            ### WinGet (Recommended)
+            ```
+            winget install SevIQ.ThemeToggle
+            ```
+
+            ### Manual
+            Download and run the installer, or extract the portable ZIP.
+
+            ## Quick Start
+            ```cmd
+            ThemeToggle.exe           # Toggle current theme
+            ThemeToggle.exe /light    # Force light mode
+            ThemeToggle.exe /dark     # Force dark mode
+            ```
+
+            ## System Requirements
+            - Windows 10 (1809+) or Windows 11
+            - No admin rights required
+            - No dependencies

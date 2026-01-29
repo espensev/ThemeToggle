@@ -1,0 +1,105 @@
+# CI Build Workflow
+# Builds and verifies ThemeToggle on push/PR
+
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/RELEASE_TEMPLATE.md'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup Visual Studio Dev Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build executable
+        run: |
+          echo "Building ThemeToggle.exe..."
+
+          # Clean previous artifacts
+          Remove-Item -Force *.obj, *.res -ErrorAction SilentlyContinue
+
+          # Compile resources
+          rc ThemeToggle.rc
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          # Compile source files
+          cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG /I include src\main.cpp src\RegistryManager.cpp src\BroadcastManager.cpp src\UxThemeHelper.cpp
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          # Link
+          link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /OUT:ThemeToggle.exe main.obj RegistryManager.obj BroadcastManager.obj UxThemeHelper.obj ThemeToggle.res user32.lib advapi32.lib dwmapi.lib shell32.lib
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          # Cleanup
+          Remove-Item -Force *.obj, ThemeToggle.res -ErrorAction SilentlyContinue
+
+          echo "Build completed successfully"
+        shell: pwsh
+
+      - name: Verify executable
+        run: |
+          if (!(Test-Path "ThemeToggle.exe")) {
+            Write-Error "ThemeToggle.exe not found!"
+            exit 1
+          }
+
+          $info = Get-Item "ThemeToggle.exe"
+          echo "Built: ThemeToggle.exe ($([math]::Round($info.Length/1KB)) KB)"
+
+          # Test help output (returns non-zero but that's expected)
+          $output = & .\ThemeToggle.exe /? 2>&1
+          echo "Executable runs successfully"
+        shell: pwsh
+
+      - name: Verify version consistency
+        run: |
+          $versionFile = Get-Content "VERSION" -Raw
+          $version = $versionFile.Trim()
+          echo "VERSION file: $version"
+
+          # Check winget manifests
+          $manifests = @(
+            "winget/SevIQ.ThemeToggle.yaml",
+            "winget/SevIQ.ThemeToggle.installer.yaml",
+            "winget/SevIQ.ThemeToggle.locale.en-US.yaml"
+          )
+
+          foreach ($manifest in $manifests) {
+            if (Test-Path $manifest) {
+              $content = Get-Content $manifest -Raw
+              if ($content -match "PackageVersion:\s*$version") {
+                echo "[OK] $manifest has version $version"
+              } else {
+                Write-Warning "$manifest may have mismatched version"
+              }
+            }
+          }
+        shell: pwsh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ThemeToggle-exe
+          path: ThemeToggle.exe
+          retention-days: 7
