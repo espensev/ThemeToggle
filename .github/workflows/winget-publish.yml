@@ -106,6 +106,7 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
           $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
+          $packageId = "SevIQ.ThemeToggle"
 
           if (-not $env:WINGET_GITHUB_TOKEN) {
             Write-Error "WINGET_GITHUB_TOKEN secret is not set!"
@@ -115,20 +116,31 @@ jobs:
           }
 
           echo "Submitting to WinGet..."
-          echo "Package: SevIQ.ThemeToggle"
+          echo "Package: $packageId"
           echo "Version: $version"
           echo "Installer: $installerUrl"
 
-          # Use wingetcreate to update and submit
-          # -s: Submit PR
-          # -t: GitHub token
-          # -u: Installer URL(s)
-          # -v: Version
-          .\wingetcreate.exe update SevIQ.ThemeToggle `
-            --version $version `
-            --urls $installerUrl `
-            --submit `
-            --token $env:WINGET_GITHUB_TOKEN
+          # Determine if the package already exists in winget-pkgs
+          .\wingetcreate.exe show $packageId | Out-Null
+          $exists = ($LASTEXITCODE -eq 0)
+
+          if ($exists) {
+            echo "Package exists in winget-pkgs, updating..."
+            # Use wingetcreate to update and submit
+            # -s: Submit PR
+            # -t: GitHub token
+            # -u: Installer URL(s)
+            # -v: Version
+            .\wingetcreate.exe update $packageId `
+              --version $version `
+              --urls $installerUrl `
+              --submit `
+              --token $env:WINGET_GITHUB_TOKEN
+          } else {
+            echo "Package not found in winget-pkgs, submitting new manifest..."
+            $prTitle = "Add $packageId $version"
+            .\wingetcreate.exe submit --prtitle $prTitle --token $env:WINGET_GITHUB_TOKEN winget
+          }
 
           if ($LASTEXITCODE -eq 0) {
             echo ""
