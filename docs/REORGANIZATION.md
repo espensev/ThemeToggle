@@ -6,7 +6,7 @@
 
 #### Distribution Pipeline
 - **[setup.nsi](../setup.nsi)** - NSIS installer script (Nullsoft installer for WinGet)
-- **[dist/build-release.bat](../dist/build-release.bat)** - Unified build pipeline (4-step process)
+- **[dist/build-release.bat](../dist/build-release.bat)** - Unified build pipeline (builds and signs if configured)
 - **[dist/update-winget.ps1](../dist/update-winget.ps1)** - Auto-calculate SHA256/GUID for WinGet
 
 #### Consolidated Launchers
@@ -35,18 +35,15 @@
 7. Upload to GitHub
 ```
 
-### NEW (4 automated steps)
+### NEW (3 automated steps)
 ```batch
 # Step 1: Build executable
 build.bat
 
-# Step 2: Build installer + package + validate
+# Step 2: Build installer + package + validate (auto-signs if configured)
 dist\build-release.bat
 
-# Step 3: Sign release artifacts
-tools\signing\sign-release.ps1
-
-# Step 4: Update manifests with real SHA256/GUID
+# Step 3: Update manifests with real SHA256/GUID
 dist\update-winget.ps1
 ```
 
@@ -68,32 +65,27 @@ tools\validate.bat
 
 ### Release Process
 ```batch
-# 1. Build everything (exe + installer + ZIP)
+# 1. Build everything (exe + installer + ZIP; auto-signs if configured)
 dist\build-release.bat
 
-# 2. Sign release artifacts (ThemeToggle.exe + installer)
-tools\signing\sign-release.ps1
-
-# 3. Update WinGet manifests (auto-SHA256/GUID)
+# 2. Update WinGet manifests (auto-SHA256/GUID)
 cd dist
 .\update-winget.ps1
 
-# 4. Create GitHub release
-# - Upload ThemeToggle-Setup-1.3.0.exe
+# 3. Create GitHub release
+# - Upload ThemeToggle-Setup-1.5.2.exe
 # - Upload ThemeToggle-Portable.zip
 # - Upload ThemeToggle.exe
 
-# 5. Submit to WinGet
+# 4. Submit to WinGet
 # - Fork microsoft/winget-pkgs
-# - Copy manifests to: manifests/s/SevIQ/ThemeToggle/1.3.0/
+# - Copy manifests to: manifests/s/SevIQ/ThemeToggle/1.5.2/
 # - Create pull request
 ```
 
 ---
 
----
-
-## Distribution Status: 95% → Complete
+## Distribution Status: Nearly complete
 
 ### Complete
 - [x] NSIS installer script ([setup.nsi](../setup.nsi))
@@ -103,16 +95,15 @@ cd dist
 - [x] Simplified tools ([tools/](../tools/))
 - [x] Signing tooling ([tools/signing/sign-release.ps1](../tools/signing/sign-release.ps1))
 
-### Missing
-- [ ] Code signing certificate (for signed releases)
+### Optional
+- [ ] Code signing certificate (set THEMETOGGLE_SIGN_PFX_PATH/THEMETOGGLE_SIGN_PFX_PASSWORD to auto-sign)
 
 ### Ready for Distribution
 You can now:
 1. Run `dist\build-release.bat` to create all release artifacts
-2. Run `tools\signing\sign-release.ps1` to sign the exe and installer
-3. Run `dist\update-winget.ps1` to auto-fill SHA256/GUID
-4. Upload to GitHub releases
-5. Submit to WinGet community repository
+2. Run `dist\update-winget.ps1` to auto-fill SHA256/GUID
+3. Upload to GitHub releases
+4. Submit to WinGet community repository
 
 ---
 
@@ -127,25 +118,20 @@ You can now:
    - Download from: https://nsis.sourceforge.io/
    - Or: `winget install NSIS.NSIS`
 
-3. **Sign release artifacts:**
-   ```powershell
-   tools\signing\sign-release.ps1
-   ```
-
-4. **Update manifests:**
+3. **Update manifests:**
    ```powershell
    cd dist
    .\update-winget.ps1
    ```
 
-5. **Create GitHub release** (v1.3.0):
+4. **Create GitHub release** (v1.3.0):
    - Tag: `v1.3.0`
-   - Upload: `ThemeToggle-Setup-1.3.0.exe`
+   - Upload: `ThemeToggle-Setup-1.5.2.exe`
    - Upload: `ThemeToggle-Portable.zip`
 
-6. **Submit to WinGet:**
+5. **Submit to WinGet:**
    - Fork: https://github.com/microsoft/winget-pkgs
-   - Path: `manifests/s/SevIQ/ThemeToggle/1.3.0/`
+   - Path: `manifests/s/SevIQ/ThemeToggle/1.5.2/`
    - Create PR with 3 manifest files
 
 ---

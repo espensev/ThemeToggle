@@ -10,6 +10,7 @@ enum class ExitCode : int {
     ChangedToDark = 2,
     RegKeyCreateFailed = 10,
     RegWriteFailed = 11,
+    RegReadFailed = 12,
     BroadcastFailed = 20,
     AlreadyRunning = 30,
     UnknownError = 99
@@ -19,7 +20,15 @@ enum class ExitCode : int {
 enum class RegistryStatus {
     Success,
     KeyNotFound,
-    AccessDenied
+    AccessDenied,
+    OtherError
+};
+
+// Stubborn app kick policy
+enum class KickPolicy {
+    All,
+    Core,
+    None
 };
 
 // Theme info
@@ -32,6 +41,7 @@ struct ThemeInfo {
     bool broadcastOk = false;
     ExitCode exitCode = ExitCode::SuccessNoChange;
     int stubbornAppsKicked = 0;
+    int verifyAttempts = 0;
 };
 
 // RAII registry key
@@ -89,21 +99,31 @@ struct MutexGuard {
     HANDLE hMutex = nullptr;
     bool owned = false;
     bool abandoned = false;
+    bool timedOut = false;
+    DWORD createError = 0;
+    DWORD waitError = 0;
 
     MutexGuard(const MutexGuard&) = delete;
     MutexGuard& operator=(const MutexGuard&) = delete;
 
     explicit MutexGuard(const wchar_t* name) {
         hMutex = CreateMutexW(nullptr, FALSE, name);
-        if (hMutex) {
-            // Wait up to 2s
-            DWORD result = WaitForSingleObject(hMutex, 2000);
-            if (result == WAIT_OBJECT_0) {
-                owned = true;
-            } else if (result == WAIT_ABANDONED) {
-                owned = true;
-                abandoned = true;
-            }
+        if (!hMutex) {
+            createError = GetLastError();
+            return;
+        }
+
+        // Wait up to 2s
+        DWORD result = WaitForSingleObject(hMutex, 2000);
+        if (result == WAIT_OBJECT_0) {
+            owned = true;
+        } else if (result == WAIT_ABANDONED) {
+            owned = true;
+            abandoned = true;
+        } else if (result == WAIT_TIMEOUT) {
+            timedOut = true;
+        } else if (result == WAIT_FAILED) {
+            waitError = GetLastError();
         }
     }
 
@@ -116,8 +136,13 @@ struct MutexGuard {
         }
     }
 
+    bool IsValid() const { return hMutex != nullptr; }
     bool IsOwned() const { return owned; }
     bool WasAbandoned() const { return abandoned; }
+    bool IsTimedOut() const { return timedOut; }
+    bool HasWaitError() const { return waitError != 0; }
+    DWORD CreateError() const { return createError; }
+    DWORD WaitError() const { return waitError; }
 };
 
 // RAII priority boost

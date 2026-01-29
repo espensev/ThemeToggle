@@ -2,9 +2,24 @@
 
 UxThemeHelper::UxThemeHelper() = default;
 
+UxThemeHelper::~UxThemeHelper() {
+    if (hUxThemeLoaded) {
+        FreeLibrary(hUxThemeLoaded);
+    }
+}
+
 void UxThemeHelper::LoadApis() {
-    // Use existing handle
+    // Try existing handle first
     HMODULE hUxTheme = GetModuleHandleW(L"uxtheme.dll");
+
+    // Fallback to LoadLibraryW if not already loaded
+    if (!hUxTheme) {
+        hUxTheme = LoadLibraryW(L"uxtheme.dll");
+        if (hUxTheme) {
+            hUxThemeLoaded = hUxTheme;  // Track for cleanup
+        }
+    }
+
     if (!hUxTheme) return;
 
     // Load via ordinal
@@ -17,17 +32,22 @@ void UxThemeHelper::LoadApis() {
 }
 
 void UxThemeHelper::SyncTheme(bool isDark) {
-    // Refresh policy
+    // Undocumented APIs - optimal call order is uncertain.
+    // Current order: refresh policy → flush menus → set mode
+    // Alternative: refresh → set mode → flush (set before rebuilding caches)
+    // Testing suggests both work; keeping conservative order.
+    
+    // Refresh policy (reloads color settings from registry)
     if (RefreshImmersiveColorPolicyState) {
         RefreshImmersiveColorPolicyState();
     }
 
-    // Flush menu themes
+    // Flush menu themes (clears cached menu visuals)
     if (FlushMenuThemes) {
         FlushMenuThemes();
     }
 
-    // Set preferred mode
+    // Set preferred mode (configures dark/light for new windows)
     if (SetPreferredAppMode) {
         SetPreferredAppMode(isDark ? ForceDark : ForceLight);
     }

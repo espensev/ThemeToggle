@@ -5,16 +5,35 @@ REM ============================================================================
 REM Complete build pipeline:
 REM   1. Clean workspace
 REM   2. Build ThemeToggle.exe
-REM   3. Build NSIS installer
-REM   4. Create portable ZIP package
-REM   5. Validate all outputs
-REM   6. Display next steps for distribution
+REM   3. Sign ThemeToggle.exe (if signing env is set)
+REM   4. Build NSIS installer
+REM   5. Sign installer (if signing env is set)
+REM   6. Create portable ZIP package
+REM   7. Validate all outputs
+REM   8. Display next steps for distribution
 REM ============================================================================
 
 setlocal enabledelayedexpansion
 
 REM Save current directory and switch to repository root
 pushd "%~dp0\.."
+
+REM Read product version (VERSION file preferred, fallback to setup.nsi)
+set "PRODUCT_VERSION="
+if exist "VERSION" (
+    for /f "usebackq tokens=* delims=" %%v in ("VERSION") do (
+        set "PRODUCT_VERSION=%%v"
+    )
+)
+if not defined PRODUCT_VERSION (
+    for /f "tokens=3 delims=\" %%v in ('findstr /R /C:"PRODUCT_VERSION \"[0-9]" setup.nsi') do (
+        set "PRODUCT_VERSION=%%v"
+    )
+)
+
+set SIGNING_ENABLED=0
+if defined THEMETOGGLE_SIGN_PFX_PATH set SIGNING_ENABLED=1
+if defined THEMETOGGLE_SIGN_CERT_THUMBPRINT set SIGNING_ENABLED=1
 
 echo.
 echo ========================================
@@ -25,7 +44,7 @@ echo.
 REM ==================================================
 REM Step 1: Clean workspace
 REM ==================================================
-echo [1/6] Cleaning workspace...
+echo [1/8] Cleaning workspace...
 echo ------------------------------------
 del *.obj *.res RC* RD* *.aps 2>nul
 if exist "ThemeToggle-Setup-*.exe" (
@@ -38,7 +57,7 @@ echo.
 REM ==================================================
 REM Step 2: Build executable
 REM ==================================================
-echo [2/6] Building ThemeToggle.exe...
+echo [2/8] Building ThemeToggle.exe...
 echo ------------------------------------
 call build.bat
 if %ERRORLEVEL% NEQ 0 (
@@ -50,7 +69,7 @@ echo.
 REM ==================================================
 REM Step 3: Verify executable
 REM ==================================================
-echo [3/6] Verifying executable...
+echo [3/8] Verifying executable...
 echo ------------------------------------
 if not exist "ThemeToggle.exe" (
     echo [ERROR] ThemeToggle.exe not found after build!
@@ -67,9 +86,26 @@ if %ERRORLEVEL% GTR 10 (
 echo.
 
 REM ==================================================
-REM Step 4: Build NSIS installer
+REM Step 4: Sign executable (optional)
 REM ==================================================
-echo [4/6] Building NSIS installer...
+echo [4/8] Signing ThemeToggle.exe (optional)...
+echo ------------------------------------
+if %SIGNING_ENABLED% EQU 1 (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "tools\signing\sign-release.ps1" -Target exe
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Signing ThemeToggle.exe failed
+        goto ERROR
+    )
+    echo [OK] ThemeToggle.exe signed
+) else (
+    echo [SKIP] Signing not configured
+)
+echo.
+
+REM ==================================================
+REM Step 5: Build NSIS installer
+REM ==================================================
+echo [5/8] Building NSIS installer...
 echo ------------------------------------
 
 REM Check for NSIS
@@ -93,9 +129,34 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 
 REM ==================================================
-REM Step 5: Create portable ZIP
+REM Step 6: Sign installer (optional)
 REM ==================================================
-echo [5/6] Creating portable package...
+echo [6/8] Signing installer (optional)...
+echo ------------------------------------
+if "%SKIP_INSTALLER%"=="0" (
+    if %SIGNING_ENABLED% EQU 1 (
+        if defined PRODUCT_VERSION (
+            powershell -NoProfile -ExecutionPolicy Bypass -File "tools\signing\sign-release.ps1" -Target installer -Version "%PRODUCT_VERSION%"
+        ) else (
+            powershell -NoProfile -ExecutionPolicy Bypass -File "tools\signing\sign-release.ps1" -Target installer
+        )
+        if %ERRORLEVEL% NEQ 0 (
+            echo [ERROR] Signing installer failed
+            goto ERROR
+        )
+        echo [OK] Installer signed
+    ) else (
+        echo [SKIP] Signing not configured
+    )
+) else (
+    echo [SKIP] Installer not built
+)
+echo.
+
+REM ==================================================
+REM Step 7: Create portable ZIP
+REM ==================================================
+echo [7/8] Creating portable package...
 echo ------------------------------------
 
 if not exist "deploy\ThemeToggle" mkdir "deploy\ThemeToggle"
@@ -129,9 +190,9 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 
 REM ==================================================
-REM Step 6: Validate outputs
+REM Step 8: Validate outputs
 REM ==================================================
-echo [6/6] Validating outputs...
+echo [8/8] Validating outputs...
 echo ------------------------------------
 
 set VALIDATION_OK=1

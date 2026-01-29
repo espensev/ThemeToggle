@@ -20,7 +20,10 @@ RegistryStatus RegistryManager::ReadTheme(DWORD& systemValue, DWORD& appsValue, 
         return RegistryStatus::KeyNotFound;
     }
 
-    return RegistryStatus::AccessDenied;
+    if (result == ERROR_ACCESS_DENIED) {
+        return RegistryStatus::AccessDenied;
+    }
+    return RegistryStatus::OtherError;
 }
 
 bool RegistryManager::WriteTheme(DWORD value, DWORD prevSystem, bool hadSystem) {

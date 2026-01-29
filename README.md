@@ -1,6 +1,6 @@
 # ThemeToggle
 
-Ultra-fast Windows theme switcher (10-15ms execution).
+Windows theme switcher (typical 10-15ms execution on a test system).
 
 ## Quick Start
 
@@ -41,9 +41,9 @@ schtasks /create /tn "Theme-Evening" /tr "\"C:\path\to\ThemeToggle.exe\" /dark /
 
 ### PowerShell
 ```powershell
-.\ThemeToggle.ps1           # Toggle
-.\ThemeToggle.ps1 -Light    # Force light
-.\ThemeToggle.ps1 -Dark     # Force dark
+dist\launchers\ThemeToggle.ps1           # Toggle
+dist\launchers\ThemeToggle.ps1 -Light    # Force light
+dist\launchers\ThemeToggle.ps1 -Dark     # Force dark
 ```
 
 ## Command-Line Options
@@ -56,7 +56,11 @@ schtasks /create /tn "Theme-Evening" /tr "\"C:\path\to\ThemeToggle.exe\" /dark /
 | `/quiet` | Suppress console output |
 | `/passthru` | Output detailed status info |
 | `/exitcode` | Return status as exit code |
-| `/nokick` | Skip stubborn app notifications |
+| `/kick=all` | Kick all stubborn apps (default) |
+| `/kick=core` | Kick core stubborn apps only |
+| `/kick=none` | Do not kick stubborn apps |
+| `/nokick` | Alias for `/kick=none` |
+| `/noflush` | Skip registry flush (best-effort) |
 
 ## Exit Codes
 
@@ -79,13 +83,26 @@ build.bat
 **Release pipeline:**
 ```cmd
 dist\build-release.bat
-tools\signing\sign-release.ps1
 dist\update-winget.ps1
 ```
+If signing env vars are set, `dist\build-release.bat` signs artifacts automatically.
 
 **Requirements:** Visual Studio 2019+ (MSVC), Windows SDK, NSIS (for installer)
 
-**Build output:** `ThemeToggle.exe` (~220 KB, no dependencies)
+**Build output:** `ThemeToggle.exe` (single-file, no dependencies)
+
+## Benchmarking
+
+```powershell
+.\tools\bench.ps1 -Iterations 1000
+```
+Use `-SettleMs` to wait between toggles so apps can visually update (default: 250ms).
+For longer runs, consider `-BatchSize`/`-BatchPauseMs` and `-JitterMs` to reduce system stress.
+
+**Export for another machine:**
+```powershell
+.\tools\export-bench.ps1 -Zip
+```
 
 ## Technical Details
 
@@ -94,7 +111,7 @@ dist\update-winget.ps1
 - **Compatibility:** Windows 10 (1809+), Windows 11, Server 2019+
 - **Architecture:** x86 (runs on both 32-bit and 64-bit Windows)
 - **Compiler:** MSVC 19.44 (C++17)
-- **Optimizations:** `/O2` (speed)
+- **Build flags:** `/O2`
 - **Size:** ~220 KB
 
 ## Registry Keys Modified

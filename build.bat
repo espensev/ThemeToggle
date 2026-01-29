@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 REM Build script for ThemeToggle.exe
 
 REM Save current directory and switch to script directory
@@ -8,13 +9,14 @@ REM Detect and setup Visual Studio Build Tools environment
 if not defined VSCMD_VER (
     echo Setting up Build Tools environment...
     
-    REM Try vswhere.exe first (official VS locator tool)
     set "VSINSTALL="
+    
+    REM Try vswhere.exe first (official VS locator tool)
     set "VSWHERE=C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
     
-    if exist "%VSWHERE%" (
+    if exist "!VSWHERE!" (
         echo Using vswhere.exe to locate Visual Studio...
-        for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
+        for /f "usebackq tokens=*" %%i in (`"!VSWHERE!" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
             set "VSINSTALL=%%i\VC\Auxiliary\Build\vcvarsall.bat"
         )
     )
@@ -23,15 +25,18 @@ if not defined VSCMD_VER (
     if not defined VSINSTALL (
         echo vswhere.exe not found, trying common paths...
         
-        REM VS 2026 (version 18)
-        if not defined VSINSTALL if exist "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VSINSTALL=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-        )
-        if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" (
+        REM VS 2026 (version 18) - Check all locations
+        if exist "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" (
             set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
         )
         if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvarsall.bat" (
             set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+        if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+        )
+        if not defined VSINSTALL if exist "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
+            set "VSINSTALL=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
         )
         
         REM VS 2022
@@ -48,9 +53,9 @@ if not defined VSCMD_VER (
         exit /b 1
     )
     
-    echo Found: %VSINSTALL%
-    call "%VSINSTALL%" x64 >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    echo Found: !VSINSTALL!
+    call "!VSINSTALL!" x64 >nul 2>&1
+    if !ERRORLEVEL! NEQ 0 (
         echo ERROR: Failed to initialize build environment
         popd
         exit /b 1

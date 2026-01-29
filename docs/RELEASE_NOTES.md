@@ -22,48 +22,48 @@ Detailed technical notes for each release.
 
 ---
 
-## Version 1.2.0 - "Fire and Forget" (2024-12-24)
+## Version 1.2.0 - "Asynchronous Broadcasts" (2024-12-24)
 
-### Performance Breakthrough
+### Performance Notes
 
-**83% faster execution** - Achieved theoretical minimum performance:
+**Execution time** (test system):
 - **Before:** 110ms total execution
 - **After:** 10-15ms total execution
-- **Result:** Sub-16ms (imperceptible, <1 video frame @ 60fps)
+- **Result:** ~10-15ms (~<1 frame @ 60fps)
 
-### Key Optimizations
+### Key Changes
 
-#### 1. Fire-and-Forget Broadcasts
-Eliminated all blocking operations by switching to asynchronous messaging:
+#### 1. Asynchronous Broadcasts
+Replaced blocking broadcasts with asynchronous messaging:
 
 ```cpp
 // OLD: Blocks for 10-25ms waiting for confirmation
 SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, ...);
 
-// NEW: Returns instantly, system handles delivery
+// NEW: Returns without waiting for delivery
 SendNotifyMessageW(HWND_BROADCAST, WM_SETTINGCHANGE, ...);
 ```
 
-**Savings:** 10-25ms per broadcast
+**Estimated reduction:** 10-25ms per broadcast (test system)
 
 #### 2. Removed DWM Window Enumeration
-Eliminated redundant window enumeration (100 windows @ ~0.03ms each):
+Removed redundant window enumeration (100 windows @ ~0.03ms each):
 - Global broadcasts already reach all windows
 - No need to manually enumerate and notify
-- Simpler code, same coverage
+- Simpler code; broad coverage maintained
 
-**Savings:** 3-5ms
+**Estimated reduction:** 3-5ms (test system)
 
 #### 3. Parallel Broadcast Strategy
-Multi-layered approach ensures comprehensive coverage:
+Multi-layered approach targets common UI surfaces:
 1. **Direct system windows** (0-5ms) - Taskbar, tray, Settings, widgets
 2. **DWM integration** (5ms) - Desktop Window Manager notifications
-3. **Global broadcasts** (0ms) - Fire-and-forget to all windows
+3. **Global broadcasts** (0ms) - Async notify to all windows
 4. **Stubborn app kicking** (optional) - Explicit notifications to 14 common apps
 
-### Stubborn App Detection
+### Stubborn App Handling
 
-Now explicitly kicks apps that commonly miss theme changes:
+Explicitly notifies apps that commonly miss theme changes:
 
 | App | Class Name | Why Stubborn |
 |-----|------------|--------------|
@@ -75,19 +75,19 @@ Now explicitly kicks apps that commonly miss theme changes:
 | **Chrome** | `Chrome_WidgetWin_1` | Optional kick |
 | **Firefox** | `MozillaWindowClass` | Optional kick |
 
-**Pre-check optimization:** Skips full enumeration if no stubborn apps are running.
+**Enumeration:** Scans top-level windows for known stubborn classes (skipped in remote sessions); uses a fast check to avoid enumeration when no common classes are present.
 
 ### Windows 11 Undocumented APIs
 
-Leverages uxtheme.dll ordinal-based APIs for instant updates:
+Uses uxtheme.dll ordinal-based APIs to trigger refreshes:
 
 | API | Ordinal | Effect |
 |-----|---------|--------|
 | `SetPreferredAppMode` | 135 | Forces dark/light mode preference |
-| `FlushMenuThemes` | 136 | Instant context menu theme update |
+| `FlushMenuThemes` | 136 | Context menu theme refresh |
 | `RefreshImmersiveColorPolicyState` | 104 | Forces theme policy refresh |
 
-**Result:** Context menus and UI elements update instantly (no delay).
+**Result:** Context menus and UI elements update after the refresh calls; timing varies by app.
 
 ### Architecture Refactoring
 
@@ -138,39 +138,39 @@ All resources automatically cleaned up:
 | Registry read | 2-3ms | Disk I/O (unavoidable) |
 | Registry write | 2-3ms | Disk I/O (unavoidable) |
 | Registry flush | 1-2ms | Force persistence |
-| uxtheme APIs | <1ms | Fast syscalls |
+| uxtheme APIs | <1ms | System calls |
 | System windows | 0ms | Fire-and-forget |
 | Global broadcasts | <1ms | Fire-and-forget |
-| Stubborn apps | 0-2ms | Optional, pre-checked |
-| **Total** | **10-15ms** | **At theoretical minimum** |
+| Stubborn apps | 0-2ms | Optional; enumerates windows |
+| **Total** | **10-15ms** | **Estimated lower bound (test system)** |
 
 ### What Updates When
 
-**Immediate (0-5ms):**
+**0-5ms:**
 - Taskbar background color
 - System tray icons
 - Context menus (uxtheme FlushMenuThemes)
 - Window titlebars (DWM)
 
-**Very Fast (5-15ms):**
+**5-15ms:**
 - File Explorer
 - Settings app
 - Start menu
 - Action Center
 
-**Fast (15-50ms):**
+**15-50ms:**
 - UWP apps
 - Modern Win32 apps
 - Background apps
 
-**Acceptable (app-dependent):**
+**50ms+ (app-dependent):**
 - Office apps (update on focus)
 - Third-party apps (if they listen)
 - Browsers (often require manual refresh)
 
 ### New Command-Line Options
 
-- `/nokick` - Skip stubborn app notifications (2-5ms faster, 95% to 85% coverage)
+- `/nokick` - Skip explicit stubborn-app kicks (saves ~2-5ms; targets Explorer/dialogs/Office/WPF/Terminal/Chrome/Firefox when enabled)
 
 ### Exit Codes
 
@@ -179,33 +179,33 @@ All resources automatically cleaned up:
 ### Testing Results
 
 **1000 rapid toggles:** 100% success, 0 crashes, 0 race conditions  
-**Multi-monitor:** All taskbars update instantly  
-**Windows 10:** Tested, works perfectly (auto-disables Win11 APIs)  
-**Windows 11:** Tested, full optimization active  
+**Multi-monitor:** All taskbars updated in tests  
+**Windows 10:** Tested; Win11 APIs auto-disable when unavailable  
+**Windows 11:** Tested; Win11 APIs enabled  
 
 ---
 
 ## Version 1.1.0 - "Parallel Broadcast" (2024-12-15)
 
-### Performance Improvements
+### Performance Notes
 
-**36% faster execution:**
+**Execution time change:**
 - **Before:** 110ms total
 - **After:** 70ms total
-- **Result:** Noticeable improvement in responsiveness
+- **Result:** 70ms total (test system)
 
 ### Multi-Layered Broadcast Strategy
 
 Introduced parallel notification approach:
 1. Targeted system windows (taskbar, tray)
 2. DWM integration (titlebars)
-3. Fast 25ms timeout broadcasts
-4. Fire-and-forget theme notifications
+3. 25ms timeout broadcasts
+4. Async theme notifications
 5. Windows 11 accent color updates
 
 **Benefits:**
-- Instant taskbar updates (<25ms vs 50-100ms)
-- 4x faster titlebar color changes
+- Taskbar updates observed <25ms in tests (prior 50-100ms)
+- Titlebar color changes reduced in tests
 - No blocking on hung windows
 
 ### Windows Version Detection
@@ -246,7 +246,7 @@ HWND hwndSecondary = FindWindowW(L"Shell_SecondaryTrayWnd", nullptr);
 
 - Automated `build.bat` script
 - MSVC C++17 compilation
-- Release optimizations (`/O2 /MT`)
+- Release flags (`/O2 /MT`)
 - ~220 KB standalone executable
 
 ### Setup Tools
@@ -282,19 +282,19 @@ Sends:
 
 ## Performance History
 
-| Version | Execution Time | Improvement |
+| Version | Execution Time | Change |
 |---------|----------------|-------------|
 | 1.0.0 | 110ms | Baseline |
-| 1.1.0 | 70ms | 36% faster |
-| 1.2.0 | 10-15ms | **83-86% faster** |
+| 1.1.0 | 70ms | 36% reduction |
+| 1.2.0 | 10-15ms | 83-86% reduction |
 
-**Final result:** From 110ms to 10-15ms = **7-11x faster**
+**Final result:** From 110ms to 10-15ms (~7-11x reduction)
 
 ---
 
 ## Technical Deep Dive
 
-### Why Fire-and-Forget Works
+### Why Asynchronous Broadcasts Work
 
 **Message Queue Guarantees:**
 - Messages are never lost
@@ -303,17 +303,17 @@ Sends:
 - System handles retries
 
 **Microsoft's Approach:**
-- Settings app uses fire-and-forget
-- Theme dialog doesn't wait
+- Settings app uses async notifications
+- Theme dialog does not wait for delivery
 - System theme changes are async
 
 **Our Testing:**
 - 1000 toggles: 100% success
-- All UI elements update instantly
-- No visual lag detected
-- Zero hung window issues
+- UI elements updated after broadcasts (timing varies by app)
+- No visual lag observed in tests
+- No hung window issues observed in tests
 
-### Theoretical Minimum
+### Estimated Lower Bound
 
 ```
 Registry I/O:    5-6ms  (disk operations, unavoidable)
@@ -321,10 +321,10 @@ uxtheme APIs:    <1ms   (syscalls)
 Broadcasts:      <1ms   (SendNotifyMessage overhead)
 Misc overhead:   3-4ms  (priority, console, function calls)
 -------------------------------------------------
-TOTAL:           ~10-12ms (theoretical minimum)
+TOTAL:           ~10-12ms (estimated lower bound)
 ```
 
-**Current: 10-15ms** - At the theoretical limit.
+**Current: 10-15ms** on test system; within expected range.
 
 ### Remaining Overhead
 
@@ -333,13 +333,13 @@ TOTAL:           ~10-12ms (theoretical minimum)
 - Function call overhead (~1ms)
 - Minor syscall latency (~1-2ms)
 
-**These are unavoidable at this architecture level.**
+**These costs are inherent to this approach.**
 
 ---
 
 ## Future Considerations
 
-### Not Implemented (Overkill)
+### Not Implemented (Tradeoffs)
 
 - **Thread parallelism** - 1-2ms overhead negates savings
 - **GPU notifications** - Undocumented, complex
@@ -352,7 +352,7 @@ TOTAL:           ~10-12ms (theoretical minimum)
 - **Legacy apps** - May hardcode colors (can't fix)
 - **Custom theme engines** - Apps with own theme logic
 
-**Verdict:** Current implementation is optimal for real-world use.
+**Note:** Current implementation favors simplicity and reliability for typical usage.
 
 ---
 
@@ -364,4 +364,4 @@ Performance optimizations inspired by:
 - Microsoft documentation and reverse engineering
 - Real-world testing and profiling
 
-**Special thanks to the Windows message queue - 30+ years of battle-tested reliability.**
+**Thanks to the Windows message queue for predictable behavior.**

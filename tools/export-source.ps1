@@ -28,8 +28,8 @@ param(
     [string]$OutDir = "",
     [switch]$Split,
     [bool]$LineNumbers = $true,
-    [string[]]$Patterns = @("*.h", "*.cpp"),
-    [string[]]$SearchDirs = @("include", "src")
+    [string[]]$Patterns = @("*.h", "*.cpp", "*.rc", "*.bat"),
+    [string[]]$SearchDirs = @("include", "src", ".")
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,12 +46,20 @@ function Get-SourceFiles {
     foreach ($dir in $Dirs) {
         $fullDir = Join-Path $BaseDir $dir
         if (-not (Test-Path $fullDir)) { continue }
+        
+        # Root dir: no recursion (avoid picking up unrelated files)
+        $recurse = ($dir -ne ".")
+        
         foreach ($glob in $Globs) {
-            $found = Get-ChildItem -Path $fullDir -Filter $glob -File -Recurse
+            if ($recurse) {
+                $found = Get-ChildItem -Path $fullDir -Filter $glob -File -Recurse
+            } else {
+                $found = Get-ChildItem -Path $fullDir -Filter $glob -File
+            }
             $files += $found
         }
     }
-    return $files | Sort-Object { $_.Extension -eq ".cpp" }, Name
+    return $files | Sort-Object { $_.Extension -eq ".cpp" }, FullName
 }
 
 # --- Formatting ---
@@ -63,8 +71,7 @@ function Format-FileBlock {
     param([System.IO.FileInfo]$File, [string]$BaseDir, [bool]$ShowLineNums)
 
     $relativePath = $File.FullName.Substring($BaseDir.Length + 1) -replace '\\', '/'
-    $content = Get-Content -Path $File.FullName -Raw
-    $lines = $content -split "`r?`n"
+    $lines = Get-FileLines -Path $File.FullName
 
     $block = @()
     $block += ""
@@ -105,7 +112,7 @@ function Format-Header {
     $idx = 1
     foreach ($f in $Files) {
         $rel = $f.FullName.Substring($BaseDir.Length + 1) -replace '\\', '/'
-        $lineCount = (Get-Content $f.FullName).Count
+        $lineCount = (Get-FileLines -Path $f.FullName).Count
         $totalLines += $lineCount
         $header += "  $($idx.ToString().PadLeft(2)). $rel ($lineCount lines)"
         $idx++
@@ -133,6 +140,25 @@ function Write-Doc {
 
     $doc | Out-File -FilePath $Path -Encoding utf8
     return $Path
+}
+
+function Get-FileLines {
+    param([string]$Path)
+
+    $content = Get-Content -Path $Path -Raw
+    if ([string]::IsNullOrEmpty($content)) {
+        return @()
+    }
+
+    $lines = $content -split "`r?`n"
+    if ($lines.Count -gt 0 -and $lines[-1] -eq "" -and $content.EndsWith("`n")) {
+        if ($lines.Count -eq 1) {
+            $lines = @()
+        } else {
+            $lines = $lines[0..($lines.Count - 2)]
+        }
+    }
+    return $lines
 }
 
 # --- Main ---

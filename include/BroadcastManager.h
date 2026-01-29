@@ -5,10 +5,10 @@
 // Stubborn app definition
 struct StubbornApp {
     const wchar_t* className;
-    const wchar_t* windowTitle;
     UINT extraMessage;
     bool needsDirectPost;
     bool prefixMatch;       // Prefix match
+    bool isCore;            // Core app class
 };
 
 class BroadcastManager {
@@ -16,13 +16,16 @@ public:
     explicit BroadcastManager(bool isWindows11);
 
     // Broadcast theme change
-    int BroadcastThemeChange(bool isDark, bool enableKick = true);
+    int BroadcastThemeChange(bool isDark, KickPolicy kickPolicy = KickPolicy::All);
 
     // Last run failure status
     bool HadBroadcastFailure() const { return hadFailure; }
 
 private:
     bool isWin11;
+    ULONGLONG lastEnumTick = 0;
+    bool lastFoundTargets = false;
+    KickPolicy lastKickPolicy = KickPolicy::All;
 
     // Broadcasts
     void BroadcastSystemWindows(const wchar_t* message);
@@ -30,7 +33,8 @@ private:
     void NotifyDWM(bool isDark);
 
     // Stubborn apps
-    int KickStubbornApps();
+    int KickStubbornApps(KickPolicy kickPolicy);
+    bool HasFastTarget(KickPolicy kickPolicy);
     static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
 
     // Helpers
@@ -40,6 +44,7 @@ private:
     struct EnumWindowsContext {
         BroadcastManager* manager = nullptr;
         int kickCount = 0;
+        KickPolicy kickPolicy = KickPolicy::All;
     };
 
     bool hadFailure = false;

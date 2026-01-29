@@ -16,11 +16,16 @@
 #   THEMETOGGLE_SIGN_DESCRIPTION       - file description (default: ThemeToggle)
 #
 # Usage:
-#   .\sign-release.ps1 -Version 1.3.0
+#   .\sign-release.ps1 -Version 1.5.1
+#   .\sign-release.ps1 -Target exe
+#   .\sign-release.ps1 -Target installer -Version 1.5.1
+#   (If Version is omitted, reads from VERSION file.)
 # ============================================================================
 
 param(
-    [string]$Version = "1.3.0"
+    [string]$Version = "",
+    [ValidateSet("all", "exe", "installer")]
+    [string]$Target = "all"
 )
 
 $ErrorActionPreference = "Stop"
@@ -75,15 +80,49 @@ if (-not $signtool) {
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\\..")
 $exePath = Join-Path $repoRoot "ThemeToggle.exe"
+$versionFile = Join-Path $repoRoot "VERSION"
+
+if (-not $Version -and (Test-Path $versionFile)) {
+    $Version = (Get-Content $versionFile -Raw).Trim()
+}
+
+if (-not $Version -and $Target.ToLowerInvariant() -ne "exe") {
+    Write-Error "Version not provided and VERSION file not found."
+    exit 1
+}
+
 $installerPath = Join-Path $repoRoot "ThemeToggle-Setup-$Version.exe"
 
+# Validate exe version matches VERSION file
+if (Test-Path $exePath) {
+    $exeVersionInfo = (Get-Item $exePath).VersionInfo
+    $exeVersion = "$($exeVersionInfo.FileMajorPart).$($exeVersionInfo.FileMinorPart).$($exeVersionInfo.FileBuildPart)"
+    if ($Version -and $exeVersion -ne $Version) {
+        Write-Error "Version mismatch: exe has $exeVersion, VERSION file has $Version. Run bump-version.ps1 and rebuild."
+        exit 1
+    }
+}
+
+$targets = $Target.ToLowerInvariant()
 $missing = @()
-if (-not (Test-Path $exePath)) {
-    $missing += $exePath
+$files = @()
+
+if ($targets -in @("all", "exe")) {
+    if (-not (Test-Path $exePath)) {
+        $missing += $exePath
+    } else {
+        $files += $exePath
+    }
 }
-if (-not (Test-Path $installerPath)) {
-    $missing += $installerPath
+
+if ($targets -in @("all", "installer")) {
+    if (-not (Test-Path $installerPath)) {
+        $missing += $installerPath
+    } else {
+        $files += $installerPath
+    }
 }
+
 if ($missing.Count -gt 0) {
     Write-Error ("Missing artifacts:`n" + ($missing -join "`n"))
     exit 1
@@ -146,7 +185,6 @@ else {
     $signArgs += @("/f", $pfxPath, "/p", $password)
 }
 
-$files = @($exePath, $installerPath)
 foreach ($file in $files) {
     Write-Host "Signing $file..."
     & $signtool @signArgs $file

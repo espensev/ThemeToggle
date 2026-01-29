@@ -1,9 +1,12 @@
 #include <windows.h>
+#include <winternl.h>
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <vector>
 #include <cstdio>
+#include <cwchar>
+#include <cctype>
 #include <shellapi.h>
 
 #include "Types.h"
@@ -40,11 +43,12 @@ void ShowGuiMessage(const std::string& text, UINT icon) {
 class WindowsThemeToggler {
 private:
     static constexpr WORD DEFAULT_CONSOLE_COLOR = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
-    static constexpr const wchar_t* MUTEX_NAME = L"Global\\WindowsThemeToggler_SingleInstance";
+    static constexpr const wchar_t* MUTEX_NAME = L"Local\\WindowsThemeToggler_SingleInstance";
 
     bool quiet;
     bool passThru;
-    bool noKick;
+    bool noFlush;
+    KickPolicy kickPolicy;
     HANDLE hConsole = nullptr;
     bool isWin11;
 
@@ -52,31 +56,25 @@ private:
     BroadcastManager broadcaster;
     UxThemeHelper uxtheme;
 
-    // Windows version check
+    // Windows version check using RtlGetVersion (reliable, no manifest required)
     bool IsWindows11OrGreater() {
-        RegKey key;
-        if (key.Open(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", KEY_READ) != ERROR_SUCCESS) {
-            return false;
-        }
-
-        wchar_t buildStr[32] = {};
-        DWORD dataSize = sizeof(buildStr);
-        DWORD type = 0;
-
-        if (RegQueryValueExW(key.Get(), L"CurrentBuild", nullptr, &type,
-            reinterpret_cast<LPBYTE>(buildStr), &dataSize) != ERROR_SUCCESS || type != REG_SZ) {
-            return false;
-        }
-
-        // Validate build string format
-        for (size_t i = 0; buildStr[i] != L'\0'; ++i) {
-            if (!iswdigit(buildStr[i])) {
-                return false;
-            }
-        }
-
-        int build = _wtoi(buildStr);
-        return build >= 22000 && build < 100000;  // Sanity check
+        using RtlGetVersionPtr = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
+        
+        HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+        if (!ntdll) return false;
+        
+        auto RtlGetVersion = reinterpret_cast<RtlGetVersionPtr>(
+            GetProcAddress(ntdll, "RtlGetVersion"));
+        if (!RtlGetVersion) return false;
+        
+        RTL_OSVERSIONINFOW osvi = {};
+        osvi.dwOSVersionInfoSize = sizeof(osvi);
+        
+        // NTSTATUS: negative values indicate failure
+        if (RtlGetVersion(&osvi) < 0) return false;
+        
+        // Windows 11 is build 22000+ with major version 10
+        return osvi.dwMajorVersion >= 10 && osvi.dwBuildNumber >= 22000;
     }
 
     void PrintMessage(const std::string& message, bool isWarning = false) {
@@ -104,17 +102,16 @@ private:
     }
 
 public:
-WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = false)
+WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPolicy = KickPolicy::All, bool noFlush = false)
     : quiet(quiet)
     , passThru(passThru)
-    , noKick(noKick)
+    , noFlush(noFlush)
+    , kickPolicy(kickPolicy)
     , isWin11(IsWindows11OrGreater())
     , broadcaster(isWin11) {
         
-    // Load undocumented APIs for Windows 11
-    if (isWin11) {
-        uxtheme.LoadApis();
-    }
+    // Load undocumented theme APIs (available on Win10 1903+, but mainly useful on Win11)
+    uxtheme.LoadApis();
 
     // Cache console handle
     hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -133,19 +130,41 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = fal
 
         // Prevent concurrent instances
         MutexGuard mutex(MUTEX_NAME);
-        if (!mutex.IsOwned()) {
-            if (!quiet) {
-                PrintMessage("Another instance is already running.", true);
+        if (mutex.IsValid()) {
+            if (mutex.HasWaitError()) {
+                // WaitForSingleObject failed unexpectedly
+                if (!quiet) {
+                    PrintMessage("Mutex wait failed; continuing without lock.", true);
+                }
             }
-            info.exitCode = ExitCode::AlreadyRunning;
-            return info;
+            else if (mutex.IsTimedOut()) {
+                // Another instance is likely hung or taking too long
+                if (!quiet) {
+                    PrintMessage("Timed out acquiring mutex; another instance may be hung.", true);
+                }
+                info.exitCode = ExitCode::AlreadyRunning;
+                return info;
+            }
+            else if (!mutex.IsOwned()) {
+                // Shouldn't reach here, but handle gracefully
+                if (!quiet) {
+                    PrintMessage("Another instance is already running.", true);
+                }
+                info.exitCode = ExitCode::AlreadyRunning;
+                return info;
+            }
+            
+            if (mutex.WasAbandoned()) {
+                PrintMessage("Previous instance may have exited abnormally.", true);
+            }
         }
-        if (mutex.WasAbandoned()) {
-            PrintMessage("Previous instance may have exited abnormally.", true);
+        else {
+            // If the mutex can't be created, don't falsely claim "AlreadyRunning".
+            // Best-effort: continue without single-instance enforcement.
+            if (!quiet) {
+                PrintMessage("Unable to create single-instance mutex; continuing without lock.", true);
+            }
         }
-
-        // Boost process priority
-        PriorityBoost priorityBoost;
 
         // Read current theme
         DWORD currSystem = 0;
@@ -155,7 +174,10 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = fal
 
         RegistryStatus readStatus = registry.ReadTheme(currSystem, currApps, hasSystem, hasApps);
         if (readStatus == RegistryStatus::AccessDenied) {
-            throw ThemeToggleError("Failed to read registry (access denied)", ExitCode::RegKeyCreateFailed);
+            throw ThemeToggleError("Failed to read registry (access denied)", ExitCode::RegReadFailed);
+        }
+        if (readStatus == RegistryStatus::OtherError) {
+            throw ThemeToggleError("Failed to read registry (unexpected error)", ExitCode::RegReadFailed);
         }
 
         // Default to dark theme if key missing
@@ -203,23 +225,65 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = fal
         info.theme = (newValue == 1) ? "Light" : "Dark";
         bool isDark = (newValue == 0);
 
+        // Boost process priority only when writing
+        PriorityBoost priorityBoost;
+
         // Write theme to registry
         if (!registry.WriteTheme(newValue, currSystem, hasSystem)) {
             throw ThemeToggleError("Failed writing theme values", ExitCode::RegWriteFailed);
         }
 
-        // Force flush
-        if (!registry.Flush()) {
-            throw ThemeToggleError("Failed to flush theme values", ExitCode::RegWriteFailed);
+        int verifyAttempts = 0;
+        auto verifyWrite = [&](DWORD expected) {
+            verifyAttempts++;
+            DWORD verifySystem = 0;
+            DWORD verifyApps = 0;
+            bool verifyHasSystem = false;
+            bool verifyHasApps = false;
+            RegistryStatus verifyStatus = registry.ReadTheme(verifySystem, verifyApps, verifyHasSystem, verifyHasApps);
+            if (verifyStatus == RegistryStatus::AccessDenied) {
+                PrintMessage("Unable to verify registry values (access denied).", true);
+                return true; // Best-effort: proceed without verification
+            }
+            if (verifyStatus == RegistryStatus::OtherError) {
+                PrintMessage("Unable to verify registry values (unexpected error).", true);
+                return true; // Best-effort: proceed without verification
+            }
+            if (verifyStatus != RegistryStatus::Success) {
+                return false;
+            }
+            return verifyHasSystem && verifyHasApps && verifySystem == expected && verifyApps == expected;
+        };
+
+        // Force flush (best-effort)
+        if (!noFlush) {
+            if (!registry.Flush()) {
+                PrintMessage("Failed to flush theme values; continuing with verification.", true);
+            }
         }
 
-        // Sync via uxtheme for Windows 11
-        if (isWin11) {
-            uxtheme.SyncTheme(isDark);
+        // Verify write; retry once if mismatch
+        if (!verifyWrite(newValue)) {
+            PrintMessage("Theme values did not verify; retrying write.", true);
+            if (!registry.WriteTheme(newValue, currSystem, hasSystem)) {
+                throw ThemeToggleError("Failed writing theme values", ExitCode::RegWriteFailed);
+            }
+            if (!noFlush) {
+                if (!registry.Flush()) {
+                    PrintMessage("Failed to flush theme values on retry.", true);
+                }
+            }
+            if (!verifyWrite(newValue)) {
+                throw ThemeToggleError("Failed to verify theme values", ExitCode::RegWriteFailed);
+            }
         }
+        info.verifyAttempts = verifyAttempts;
+
+        // Sync via uxtheme (no-op if APIs unavailable)
+        uxtheme.SyncTheme(isDark);
 
         // Broadcast change and kick stubborn apps
-        int kicked = broadcaster.BroadcastThemeChange(isDark, !noKick);
+        int kicked = broadcaster.BroadcastThemeChange(isDark, kickPolicy);
         info.stubbornAppsKicked = kicked;
         info.broadcastOk = !broadcaster.HadBroadcastFailure();
         if (info.broadcastOk) {
@@ -251,6 +315,13 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = fal
             std::cout << "BroadcastOk: " << (info.broadcastOk ? "true" : "false") << std::endl;
             std::cout << "Windows11: " << (isWin11 ? "true" : "false") << std::endl;
             std::cout << "StubbornAppsKicked: " << info.stubbornAppsKicked << std::endl;
+            std::cout << "VerifyAttempts: " << info.verifyAttempts << std::endl;
+            
+            // UxTheme API diagnostics
+            std::cout << "UxThemeLoaded: " << (uxtheme.IsFullyLoaded() ? "true" : "false") << std::endl;
+            std::cout << "UxTheme_Ord104: " << (uxtheme.HasRefreshImmersiveColorPolicyState() ? "true" : "false") << std::endl;
+            std::cout << "UxTheme_Ord135: " << (uxtheme.HasSetPreferredAppMode() ? "true" : "false") << std::endl;
+            std::cout << "UxTheme_Ord136: " << (uxtheme.HasFlushMenuThemes() ? "true" : "false") << std::endl;
         }
     }
 };
@@ -265,13 +336,18 @@ void PrintUsage() {
         "  /quiet       Suppress output\n"
         "  /passthru    Return detailed information\n"
         "  /exitcode    Map result to exit code\n"
-        "  /nokick      Do not attempt to kick stubborn apps\n\n"
+        "  /kick=all    Kick all stubborn apps (default)\n"
+        "  /kick=core   Kick core stubborn apps only\n"
+        "  /kick=none   Do not kick stubborn apps\n"
+        "  /nokick      Alias for /kick=none\n"
+        "  /noflush     Skip registry flush (best-effort)\n\n"
         "Exit Codes (when /exitcode is used):\n"
         "  0  = Success (no change)\n"
         "  1  = Changed to Light\n"
         "  2  = Changed to Dark\n"
         "  10 = Registry key creation failed\n"
         "  11 = Registry write failed\n"
+        "  12 = Registry read failed\n"
         "  20 = Broadcast failed but registry ok\n"
         "  30 = Already running (another instance)\n"
         "  99 = Unknown error\n";
@@ -288,7 +364,8 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     bool quiet = false;
     bool passThru = false;
     bool asExitCode = false;
-    bool noKick = false;
+    bool noFlush = false;
+    KickPolicy kickPolicy = KickPolicy::All;
 
     // Parse arguments
     for (int i = 1; i < argc; ++i) {
@@ -316,8 +393,23 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         else if (arg == "/exitcode" || arg == "-exitcode") {
             asExitCode = true;
         }
+        else if (arg == "/noflush" || arg == "-noflush") {
+            noFlush = true;
+        }
         else if (arg == "/nokick" || arg == "-nokick") {
-            noKick = true;
+            kickPolicy = KickPolicy::None;
+        }
+        else if (arg.rfind("/kick=", 0) == 0 || arg.rfind("-kick=", 0) == 0) {
+            auto value = arg.substr(6);
+            if (value == "all") {
+                kickPolicy = KickPolicy::All;
+            }
+            else if (value == "core") {
+                kickPolicy = KickPolicy::Core;
+            }
+            else if (value == "none") {
+                kickPolicy = KickPolicy::None;
+            }
         }
         else if (arg == "/?" || arg == "-?" || arg == "/help" || arg == "-help") {
             PrintUsage();
@@ -331,7 +423,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     }
 
     try {
-        WindowsThemeToggler toggler(quiet, passThru, noKick);
+        WindowsThemeToggler toggler(quiet, passThru, kickPolicy, noFlush);
         ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark);
         toggler.PrintThemeInfo(info);
 

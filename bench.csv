@@ -1,0 +1,6 @@
+Iteration,DurationMs,SettleMs,TotalMs,ExitCode,Changed,BroadcastOk,Theme,OldSystemValue,OldAppsValue,NewValue,RegSystem,RegApps,RegMismatch
+1,126,100,126,20,False,false,,0,0,1,1,1,False
+2,126,100,126,20,False,false,,1,1,0,0,0,False
+3,138,100,138,20,False,false,,0,0,1,1,1,False
+4,139,100,139,20,False,false,,1,1,0,0,0,False
+5,144,100,144,20,False,false,,0,0,1,1,1,False

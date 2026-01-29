@@ -2,12 +2,13 @@
 # WinGet Manifest Updater
 # ============================================================================
 # Automatically updates WinGet manifests with real SHA256 hashes and GUID
-# Usage: .\update-winget.ps1 [-Version "1.3.0"] [-DryRun]
+# Usage: .\update-winget.ps1 [-Version "1.5.1"] [-DryRun]
+# If Version is omitted, reads from VERSION file at repo root.
 # Note: run after signing the installer so the SHA256 matches the signed binary.
 # ============================================================================
 
 param(
-    [string]$Version = "1.3.0",
+    [string]$Version = "",
     [switch]$DryRun
 )
 
@@ -17,6 +18,25 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 Set-Location $repoRoot
+
+function Get-RepoVersion {
+    param([string]$Root)
+    $versionPath = Join-Path $Root "VERSION"
+    if (Test-Path $versionPath) {
+        $raw = Get-Content $versionPath -Raw
+        $v = $raw.Trim()
+        if ($v) { return $v }
+    }
+    return $null
+}
+
+if (-not $Version) {
+    $Version = Get-RepoVersion -Root $repoRoot
+}
+if (-not $Version) {
+    Write-Host "[ERROR] Version not provided and VERSION file not found." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
@@ -99,18 +119,30 @@ else {
     # Update installer manifest
     $installerManifest = Get-Content $manifestPath -Raw
     
-    # Replace SHA256
-    $installerManifest = $installerManifest -replace 'InstallerSha256:\s*REPLACE_WITH_ACTUAL_SHA256_HASH', "InstallerSha256: $sha256"
+# Replace SHA256
+$installerManifest = $installerManifest -replace '(?m)^(\\s*InstallerSha256:\\s*).+$', "`$1$sha256"
+
+# Update installer URL
+$existingUrlMatch = [regex]::Match($installerManifest, '(?m)^\\s*InstallerUrl:\\s*(\\S+)$')
+$installerUrl = "https://github.com/espensev/ThemeToggle/releases/download/v$Version/ThemeToggle-Setup-$Version.exe"
+if ($existingUrlMatch.Success) {
+    $existingUrl = $existingUrlMatch.Groups[1].Value
+    $candidate = $existingUrl -replace 'v\\d+\\.\\d+\\.\\d+/ThemeToggle-Setup-\\d+\\.\\d+\\.\\d+\\.exe', "v$Version/ThemeToggle-Setup-$Version.exe"
+    if ($candidate -ne $existingUrl) {
+        $installerUrl = $candidate
+    }
+}
+$installerManifest = $installerManifest -replace '(?m)^(\\s*InstallerUrl:\\s*).+$', "`$1$installerUrl"
     
     # Replace ProductCode
     $installerManifest = $installerManifest -replace "ProductCode:\s*'\{REPLACE_WITH_PRODUCT_GUID\}'", "ProductCode: '$productGuid'"
     
-    # Update version
-    $installerManifest = $installerManifest -replace 'PackageVersion:\s*[\d\.]+', "PackageVersion: $Version"
+# Update version
+$installerManifest = $installerManifest -replace '(?m)^(\\s*PackageVersion:\\s*).+$', "`$1$Version"
     
-    # Update release date
-    $today = Get-Date -Format 'yyyy-MM-dd'
-    $installerManifest = $installerManifest -replace 'ReleaseDate:\s*\d{4}-\d{2}-\d{2}', "ReleaseDate: $today"
+# Update release date
+$today = Get-Date -Format 'yyyy-MM-dd'
+$installerManifest = $installerManifest -replace '(?m)^(\\s*ReleaseDate:\\s*).+$', "`$1$today"
     
     # Save
     $installerManifest | Set-Content $manifestPath -NoNewline -Encoding UTF8

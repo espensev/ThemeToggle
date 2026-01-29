@@ -5,12 +5,12 @@ This folder contains the release signing script.
 ## Usage
 
 ```powershell
-.\sign-release.ps1 -Version 1.3.0
+.\sign-release.ps1 -Version 1.5.2
 ```
 
 The script signs:
 - `ThemeToggle.exe`
-- `ThemeToggle-Setup-1.3.0.exe`
+- `ThemeToggle-Setup-1.5.2.exe`
 
 ## Configuration (choose one)
 

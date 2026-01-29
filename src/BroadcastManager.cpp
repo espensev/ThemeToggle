@@ -5,33 +5,32 @@
 
 namespace {
 constexpr DWORD CLASSNAME_BUFFER_SIZE = 256;
-constexpr DWORD TITLE_BUFFER_SIZE = 256;
+constexpr ULONGLONG KICK_ENUM_CACHE_MS = 1500;
 }
 
 // Stubborn apps
 static const StubbornApp STUBBORN_APPS[] = {
-    { L"CabinetWClass", nullptr, WM_THEMECHANGED, true, false },                   // File Explorer
-    { L"#32770", nullptr, WM_SYSCOLORCHANGE, true, false },                        // Dialogs
-    { L"OpusApp", nullptr, WM_SETTINGCHANGE, true, false },                        // Office apps
-    { L"HwndWrapper", nullptr, WM_THEMECHANGED, true, true },                      // WPF apps
-    { L"CASCADIA_HOSTING_WINDOW_CLASS", nullptr, WM_SETTINGCHANGE, true, false },  // Windows Terminal
-    { L"Chrome_WidgetWin_1", nullptr, WM_THEMECHANGED, false, false },             // Chrome (optional)
-    { L"MozillaWindowClass", nullptr, WM_THEMECHANGED, false, false },             // Firefox (optional)
+    { L"CabinetWClass", WM_THEMECHANGED, true, false, true },                   // File Explorer
+    { L"#32770", WM_SYSCOLORCHANGE, true, false, true },                        // Dialogs
+    { L"OpusApp", WM_SETTINGCHANGE, true, false, true },                        // Office apps
+    { L"CASCADIA_HOSTING_WINDOW_CLASS", WM_SETTINGCHANGE, true, false, true },  // Windows Terminal
+    { L"Chrome_WidgetWin_1", WM_THEMECHANGED, false, false, false },            // Chrome (optional)
+    { L"MozillaWindowClass", WM_THEMECHANGED, false, false, false },            // Firefox (optional)
 };
 
 BroadcastManager::BroadcastManager(bool isWindows11) : isWin11(isWindows11) {}
 
-int BroadcastManager::BroadcastThemeChange(bool isDark, bool enableKick) {
+int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
     hadFailure = false;
 
     BroadcastSystemWindows(L"ImmersiveColorSet");
     NotifyDWM(isDark);
     BroadcastGlobal();
 
-    if (!enableKick) return 0;
+    if (kickPolicy == KickPolicy::None) return 0;
 
     // Kick stubborn apps
-    return KickStubbornApps();
+    return KickStubbornApps(kickPolicy);
 }
 
 void BroadcastManager::BroadcastToWindow(HWND hwnd, const wchar_t* message) {
@@ -40,6 +39,36 @@ void BroadcastManager::BroadcastToWindow(HWND hwnd, const wchar_t* message) {
             hadFailure = true;
         }
     }
+}
+
+bool BroadcastManager::HasFastTarget(KickPolicy kickPolicy) {
+    // Exact-match classes only (prefix matches require enumeration)
+    const wchar_t* coreClasses[] = {
+        L"CabinetWClass",
+        L"#32770",
+        L"OpusApp",
+        L"CASCADIA_HOSTING_WINDOW_CLASS"
+    };
+
+    for (const auto* cls : coreClasses) {
+        if (FindWindowW(cls, nullptr)) {
+            return true;
+        }
+    }
+
+    if (kickPolicy == KickPolicy::All) {
+        const wchar_t* optionalClasses[] = {
+            L"Chrome_WidgetWin_1",
+            L"MozillaWindowClass"
+        };
+        for (const auto* cls : optionalClasses) {
+            if (FindWindowW(cls, nullptr)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void BroadcastManager::BroadcastSystemWindows(const wchar_t* message) {
@@ -122,13 +151,8 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     }
     if (!match) return TRUE;
 
-    // Conditional title fetch
-    if (match->windowTitle) {
-        wchar_t windowTitle[TITLE_BUFFER_SIZE] = {};
-        GetWindowTextW(hwnd, windowTitle, TITLE_BUFFER_SIZE);
-        if (!windowTitle[0] || !wcsstr(windowTitle, match->windowTitle)) {
-            return TRUE;
-        }
+    if (ctx->kickPolicy == KickPolicy::Core && !match->isCore) {
+        return TRUE;
     }
 
     LPARAM colorParam = reinterpret_cast<LPARAM>(L"ImmersiveColorSet");
@@ -142,35 +166,25 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
         ctx->manager->hadFailure = true;
     }
 
-    // Redundant broadcast
-    if (!SendNotifyMessageW(hwnd, WM_SETTINGCHANGE, 0, colorParam)) {
-        ctx->manager->hadFailure = true;
-    }
-
     ctx->kickCount++;
     return TRUE;
 }
 
-int BroadcastManager::KickStubbornApps() {
+int BroadcastManager::KickStubbornApps(KickPolicy kickPolicy) {
     // Skip in remote sessions
     if (GetSystemMetrics(SM_REMOTESESSION)) return 0;
 
-    // Optimization: Fast check
-    const wchar_t* fastCheckClasses[] = {
-        L"CabinetWClass", L"CASCADIA_HOSTING_WINDOW_CLASS", L"OpusApp"
-    };
-
-    bool targetFound = false;
-    for (const auto* cls : fastCheckClasses) {
-        if (FindWindowW(cls, nullptr)) {
-            targetFound = true;
-            break;
+    const ULONGLONG now = GetTickCount64();
+    if (kickPolicy == lastKickPolicy) {
+        if (!HasFastTarget(kickPolicy) && !lastFoundTargets && (now - lastEnumTick) < KICK_ENUM_CACHE_MS) {
+            return 0;
         }
     }
 
-    if (!targetFound) return 0;
-
-    EnumWindowsContext ctx{ this, 0 };
+    EnumWindowsContext ctx{ this, 0, kickPolicy };
     EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&ctx));
+    lastFoundTargets = ctx.kickCount > 0;
+    lastEnumTick = now;
+    lastKickPolicy = kickPolicy;
     return ctx.kickCount;
 }

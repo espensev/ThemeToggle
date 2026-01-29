@@ -11,7 +11,7 @@
 ; ============================================================================
 
 !define PRODUCT_NAME "ThemeToggle"
-!define PRODUCT_VERSION "1.5.0"
+!define PRODUCT_VERSION "1.5.2"
 !define PRODUCT_PUBLISHER "SevIQ"
 !define PRODUCT_WEB_SITE "https://github.com/espensev/ThemeToggle"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -72,29 +72,29 @@ Var CreateScheduledTasks
 ; Custom options page
 Function InstallOptionsPage
   !insertmacro MUI_HEADER_TEXT "Installation Options" "Choose additional setup options"
-  
+
   nsDialogs::Create 1018
   Pop $0
   ${If} $0 == error
     Abort
   ${EndIf}
-  
+
   ${NSD_CreateLabel} 0 0 100% 12u "Select additional features:"
   Pop $0
-  
+
   ${NSD_CreateCheckbox} 10u 20u 100% 12u "Create desktop shortcut (recommended for hotkey setup)"
   Pop $CreateShortcut
   ${NSD_Check} $CreateShortcut
-  
+
   ${NSD_CreateCheckbox} 10u 40u 100% 12u "Add to Windows startup (auto-toggle on login)"
   Pop $AddToStartup
-  
+
   ${NSD_CreateCheckbox} 10u 60u 100% 12u "Create scheduled tasks (Light at 7 AM, Dark at 7 PM)"
   Pop $CreateScheduledTasks
-  
+
   ${NSD_CreateLabel} 10u 80u 100% 24u "Note: You can change these settings later by running setup.bat or uninstall.bat in the installation directory."
   Pop $0
-  
+
   nsDialogs::Show
 FunctionEnd
 
@@ -108,26 +108,26 @@ FunctionEnd
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   SetOverwrite ifnewer
-  
+
   ; Core files
   File "ThemeToggle.exe"
   File "dist\launchers\ThemeToggle.ps1"
   File "LICENSE.txt"
   File "README.md"
-  
+
   ; Launcher scripts
   File "dist\launchers\ThemeToggle.vbs"
   File "dist\launchers\ThemeToggle-Light.vbs"
   File "dist\launchers\ThemeToggle-Dark.vbs"
-  
+
   ; Setup and uninstall scripts
   File "setup.bat"
   File "uninstall.bat"
-  
+
   ; Resources folder
   SetOutPath "$INSTDIR\Resources"
   File "Resources\ThemeToggle.ico"
-  
+
   ; Create Start Menu shortcuts
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ThemeToggle.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
@@ -135,11 +135,11 @@ Section "MainSection" SEC01
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Dark Mode.lnk" "$INSTDIR\ThemeToggle-Dark.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Setup.lnk" "$INSTDIR\setup.bat" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\uninstall.bat" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
-  
+
   ; Registry entries
   WriteRegStr HKCU "Software\${PRODUCT_NAME}" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "Software\${PRODUCT_NAME}" "Version" "${PRODUCT_VERSION}"
-  
+
   ; Uninstaller
   WriteUninstaller "$INSTDIR\uninst.exe"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
@@ -148,12 +148,12 @@ Section "MainSection" SEC01
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
-  
+
   ; Calculate installed size
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
   WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "EstimatedSize" "$0"
-  
+
   ; Optional: Desktop shortcut
   ${If} $CreateShortcut == ${BST_CHECKED}
     CreateShortCut "$DESKTOP\Toggle Theme.lnk" "$INSTDIR\ThemeToggle.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
@@ -182,16 +182,16 @@ Section Uninstall
   ; Remove scheduled tasks
   ExecWait 'schtasks /delete /tn "ThemeToggle-Morning" /f' $0
   ExecWait 'schtasks /delete /tn "ThemeToggle-Evening" /f' $0
-  
+
   ; Remove startup entry
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}"
-  
+
   ; Remove desktop shortcut
   Delete "$DESKTOP\Toggle Theme.lnk"
-  
+
   ; Remove Start Menu shortcuts
   RMDir /r "$SMPROGRAMS\${PRODUCT_NAME}"
-  
+
   ; Remove files
   Delete "$INSTDIR\ThemeToggle.exe"
   Delete "$INSTDIR\ThemeToggle.ps1"
@@ -204,14 +204,14 @@ Section Uninstall
   Delete "$INSTDIR\README.md"
   Delete "$INSTDIR\Resources\ThemeToggle.ico"
   Delete "$INSTDIR\uninst.exe"
-  
+
   ; Remove directories
   RMDir "$INSTDIR\Resources"
   RMDir "$INSTDIR"
-  
+
   ; Remove registry entries
   DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
   DeleteRegKey HKCU "Software\${PRODUCT_NAME}"
-  
+
   SetAutoClose true
 SectionEnd
