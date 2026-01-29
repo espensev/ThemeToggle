@@ -90,16 +90,6 @@ if (Test-Path $installerYaml) {
     Write-Host "  Updated: winget/SevIQ.ThemeToggle.installer.yaml"
 }
 
-# docs - simple replacements without backreferences
-$reorgPath = Join-Path $repoRoot "docs/REORGANIZATION.md"
-if (Test-Path $reorgPath) {
-    $content = Get-Content $reorgPath -Raw
-    $content = $content -replace 'ThemeToggle-Setup-\d+\.\d+\.\d+\.exe', "ThemeToggle-Setup-$Version.exe"
-    $content = $content -replace 'ThemeToggle/\d+\.\d+\.\d+/', "ThemeToggle/$Version/"
-    $content | Set-Content $reorgPath -NoNewline -Encoding UTF8
-    Write-Host "  Updated: docs/REORGANIZATION.md"
-}
-
 # signing docs
 $signReadme = Join-Path $repoRoot "tools/signing/README.md"
 if (Test-Path $signReadme) {
