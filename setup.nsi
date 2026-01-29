@@ -11,7 +11,7 @@
 ; ============================================================================
 
 !define PRODUCT_NAME "ThemeToggle"
-!define PRODUCT_VERSION "1.3.0"
+!define PRODUCT_VERSION "1.5.0"
 !define PRODUCT_PUBLISHER "SevIQ"
 !define PRODUCT_WEB_SITE "https://github.com/espensev/DarkToggle"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -99,7 +99,9 @@ Function InstallOptionsPage
 FunctionEnd
 
 Function InstallOptionsPageLeave
-  ; Store the checkbox states (not used directly, handled in Section)
+  ${NSD_GetState} $CreateShortcut $CreateShortcut
+  ${NSD_GetState} $AddToStartup $AddToStartup
+  ${NSD_GetState} $CreateScheduledTasks $CreateScheduledTasks
 FunctionEnd
 
 ; Main installation section
@@ -153,20 +155,17 @@ Section "MainSection" SEC01
   WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "EstimatedSize" "$0"
   
   ; Optional: Desktop shortcut
-  ${NSD_GetState} $CreateShortcut $0
-  ${If} $0 == ${BST_CHECKED}
+  ${If} $CreateShortcut == ${BST_CHECKED}
     CreateShortCut "$DESKTOP\Toggle Theme.lnk" "$INSTDIR\ThemeToggle.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
   ${EndIf}
-  
+
   ; Optional: Add to startup
-  ${NSD_GetState} $AddToStartup $0
-  ${If} $0 == ${BST_CHECKED}
+  ${If} $AddToStartup == ${BST_CHECKED}
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}" '"$INSTDIR\ThemeToggle.vbs"'
   ${EndIf}
-  
+
   ; Optional: Create scheduled tasks
-  ${NSD_GetState} $CreateScheduledTasks $0
-  ${If} $0 == ${BST_CHECKED}
+  ${If} $CreateScheduledTasks == ${BST_CHECKED}
     DetailPrint "Creating scheduled tasks..."
     ExecWait 'schtasks /create /tn "ThemeToggle-Morning" /tr "\"$INSTDIR\ThemeToggle-Light.vbs\"" /sc daily /st 07:00 /f'
     ExecWait 'schtasks /create /tn "ThemeToggle-Evening" /tr "\"$INSTDIR\ThemeToggle-Dark.vbs\"" /sc daily /st 19:00 /f'

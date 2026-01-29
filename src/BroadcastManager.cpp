@@ -53,16 +53,14 @@ void BroadcastManager::BroadcastSystemWindows(const wchar_t* message) {
     BroadcastToWindow(hwndTaskbar, message);
 
     // Notification area
-    HWND hwndTray = FindWindowExW(hwndTaskbar, nullptr, L"TrayNotifyWnd", nullptr);
-    BroadcastToWindow(hwndTray, message);
+    if (hwndTaskbar) {
+        HWND hwndTray = FindWindowExW(hwndTaskbar, nullptr, L"TrayNotifyWnd", nullptr);
+        BroadcastToWindow(hwndTray, message);
+    }
 
     // System tray (secondary monitors)
     HWND hwndSysTray = FindWindowW(L"Shell_SecondaryTrayWnd", nullptr);
     BroadcastToWindow(hwndSysTray, message);
-
-    // Settings app
-    HWND hwndSettings = FindWindowW(L"ApplicationFrameWindow", nullptr);
-    BroadcastToWindow(hwndSettings, message);
 
     // Win11 Widgets
     if (isWin11) {

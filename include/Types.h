@@ -11,7 +11,8 @@ enum class ExitCode : int {
     RegKeyCreateFailed = 10,
     RegWriteFailed = 11,
     BroadcastFailed = 20,
-    AlreadyRunning = 30
+    AlreadyRunning = 30,
+    UnknownError = 99
 };
 
 // Read status
@@ -87,6 +88,7 @@ private:
 struct MutexGuard {
     HANDLE hMutex = nullptr;
     bool owned = false;
+    bool abandoned = false;
 
     MutexGuard(const MutexGuard&) = delete;
     MutexGuard& operator=(const MutexGuard&) = delete;
@@ -96,8 +98,11 @@ struct MutexGuard {
         if (hMutex) {
             // Wait up to 2s
             DWORD result = WaitForSingleObject(hMutex, 2000);
-            if (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
+            if (result == WAIT_OBJECT_0) {
                 owned = true;
+            } else if (result == WAIT_ABANDONED) {
+                owned = true;
+                abandoned = true;
             }
         }
     }
@@ -112,6 +117,7 @@ struct MutexGuard {
     }
 
     bool IsOwned() const { return owned; }
+    bool WasAbandoned() const { return abandoned; }
 };
 
 // RAII priority boost

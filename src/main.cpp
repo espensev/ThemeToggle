@@ -20,8 +20,10 @@ void EnsureConsoleStreams() {
         return;
     }
     FILE* dummy = nullptr;
-    freopen_s(&dummy, "CONOUT$", "w", stdout);
-    freopen_s(&dummy, "CONOUT$", "w", stderr);
+    if (freopen_s(&dummy, "CONOUT$", "w", stdout) != 0 ||
+        freopen_s(&dummy, "CONOUT$", "w", stderr) != 0) {
+        g_hasConsole = false;
+    }
 }
 
 void ShowGuiMessage(const std::string& text, UINT icon) {
@@ -135,6 +137,9 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, bool noKick = fal
             }
             info.exitCode = ExitCode::AlreadyRunning;
             return info;
+        }
+        if (mutex.WasAbandoned()) {
+            PrintMessage("Previous instance may have exited abnormally.", true);
         }
 
         // Boost process priority
@@ -266,7 +271,8 @@ void PrintUsage() {
         "  10 = Registry key creation failed\n"
         "  11 = Registry write failed\n"
         "  20 = Broadcast failed but registry ok\n"
-        "  30 = Already running (another instance)\n";
+        "  30 = Already running (another instance)\n"
+        "  99 = Unknown error\n";
 
     std::cout << usage;
     if (!g_hasConsole) {
@@ -354,7 +360,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         }
 
         if (asExitCode) {
-            return static_cast<int>(ExitCode::RegKeyCreateFailed);
+            return static_cast<int>(ExitCode::UnknownError);
         }
         return 1;
     }
