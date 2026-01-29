@@ -11,6 +11,10 @@
 *.lnk
 *.ilk
 *.pdb
+*.exp
+*.lib
+*.iobj
+*.ipdb
 
 # Temporary resource compiler files
 RC[a-z]*[0-9]*
@@ -20,6 +24,11 @@ RD[a-z]*[0-9]*
 *.old
 *.bak
 *.exe.bak
+
+# ===================
+# Claude Code
+# ===================
+.claude/settings.local.json
 
 # ===================
 # IDE & Editors
