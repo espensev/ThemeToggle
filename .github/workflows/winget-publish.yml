@@ -89,6 +89,10 @@ jobs:
           if (Test-Path "wingetcreate.exe") {
             echo "wingetcreate installed successfully"
             .\wingetcreate.exe version
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "wingetcreate version command returned $LASTEXITCODE; continuing"
+              $global:LASTEXITCODE = 0
+            }
           } else {
             Write-Error "Failed to download wingetcreate"
             exit 1
