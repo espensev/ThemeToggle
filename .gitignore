@@ -75,6 +75,7 @@ deploy/
 # ===================
 # Windows
 # ===================
+nul
 Thumbs.db
 ehthumbs.db
 Desktop.ini
