@@ -94,7 +94,9 @@ git tag v1.5.2
 git push origin v1.5.2
 ```
 
-This builds all artifacts, calculates SHA256 hashes, and creates a GitHub release.
+This builds all artifacts, calculates SHA256 hashes, creates a GitHub release, and submits to WinGet automatically.
+
+**First-time setup:** Add a `WINGET_GITHUB_TOKEN` secret (see [docs/WINGET_SUBMISSION.md](docs/WINGET_SUBMISSION.md)).
 
 ### Manual
 
@@ -159,6 +161,7 @@ ThemeToggle/
       build.yml                 CI build on push/PR
       release.yml               Automated release on tag
       validate-winget.yml       Manifest validation
+      winget-publish.yml        Auto-submit to WinGet
   dist/
     build-release.bat           Release pipeline
     update-winget.ps1           WinGet manifest updater

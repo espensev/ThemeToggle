@@ -117,7 +117,56 @@ The winget-pkgs CI will:
 
 Fix any issues and push updates to your branch.
 
-## Using wingetcreate (Alternative)
+## Automated Publishing (Recommended)
+
+The repository includes a GitHub Actions workflow that automatically submits to WinGet after each release.
+
+### Setup (One-Time)
+
+1. **Create a GitHub Personal Access Token (PAT):**
+   - Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
+   - Click "Generate new token (classic)"
+   - Name: `WinGet Publish`
+   - Scopes: Select `public_repo` only
+   - Click "Generate token" and copy the token
+
+2. **Add the token as a repository secret:**
+   - Go to your repository Settings > Secrets and variables > Actions
+   - Click "New repository secret"
+   - Name: `WINGET_GITHUB_TOKEN`
+   - Value: Paste your PAT
+   - Click "Add secret"
+
+3. **First-time only:** Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) using the same GitHub account as the PAT. This is required for `wingetcreate` to submit PRs.
+
+### How It Works
+
+After setup, the workflow runs automatically:
+
+1. When you push a version tag (e.g., `v1.5.3`), the Release workflow runs
+2. After Release completes, the WinGet Publish workflow triggers automatically
+3. `wingetcreate` downloads the installer, calculates SHA256, and submits a PR
+4. Check [microsoft/winget-pkgs pulls](https://github.com/microsoft/winget-pkgs/pulls) for your PR
+
+### Manual Trigger
+
+You can also trigger the workflow manually:
+
+1. Go to Actions > "Publish to WinGet"
+2. Click "Run workflow"
+3. Enter the version (e.g., `1.5.2`)
+4. Optionally enable "Dry run" to validate without submitting
+
+### Dry Run
+
+To test without submitting a PR:
+```
+gh workflow run winget-publish.yml -f version=1.5.2 -f dry_run=true
+```
+
+---
+
+## Using wingetcreate (Manual Alternative)
 
 Microsoft's official tool can automate manifest creation:
 

@@ -1,0 +1,173 @@
+# WinGet Auto-Publish Workflow
+# Automatically submits a PR to microsoft/winget-pkgs after a GitHub release
+
+name: Publish to WinGet
+
+on:
+  # Trigger after release workflow completes
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.5.2)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (validate only, do not submit PR)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  publish:
+    # Only run if release workflow succeeded (or manual trigger)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from release
+        id: version
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            # Manual trigger - use input version
+            $version = "${{ inputs.version }}"
+          } else {
+            # Automatic trigger - get version from VERSION file
+            $version = (Get-Content "VERSION" -Raw).Trim()
+          }
+
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Publishing version: $version"
+        shell: pwsh
+
+      - name: Verify release exists
+        id: release
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $tag = "v$version"
+          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/ThemeToggle-Setup-$version.exe"
+
+          echo "Checking release: $tag"
+          echo "Installer URL: $installerUrl"
+
+          # Verify the installer is accessible
+          try {
+            $response = Invoke-WebRequest -Uri $installerUrl -Method Head -UseBasicParsing -ErrorAction Stop
+            echo "Release verified: HTTP $($response.StatusCode)"
+          } catch {
+            Write-Error "Release not found or installer not accessible: $installerUrl"
+            Write-Error "Make sure the release exists and contains the installer."
+            exit 1
+          }
+
+          echo "INSTALLER_URL=$installerUrl" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Install wingetcreate
+        run: |
+          # Install wingetcreate from GitHub releases
+          $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-create/releases/latest"
+          $asset = $latestRelease.assets | Where-Object { $_.name -eq "wingetcreate.exe" }
+
+          if (-not $asset) {
+            Write-Error "Could not find wingetcreate.exe in latest release"
+            exit 1
+          }
+
+          echo "Downloading wingetcreate from: $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "wingetcreate.exe"
+
+          # Verify download
+          if (Test-Path "wingetcreate.exe") {
+            echo "wingetcreate installed successfully"
+            .\wingetcreate.exe --version
+          } else {
+            Write-Error "Failed to download wingetcreate"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Update manifest and submit PR
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        env:
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
+
+          if (-not $env:WINGET_GITHUB_TOKEN) {
+            Write-Error "WINGET_GITHUB_TOKEN secret is not set!"
+            Write-Error "Please create a GitHub PAT with 'public_repo' scope and add it as a repository secret."
+            Write-Error "See: https://github.com/microsoft/winget-create#using-windows-package-manager-manifest-creator-in-github-actions"
+            exit 1
+          }
+
+          echo "Submitting to WinGet..."
+          echo "Package: SevIQ.ThemeToggle"
+          echo "Version: $version"
+          echo "Installer: $installerUrl"
+
+          # Use wingetcreate to update and submit
+          # -s: Submit PR
+          # -t: GitHub token
+          # -u: Installer URL(s)
+          # -v: Version
+          .\wingetcreate.exe update SevIQ.ThemeToggle `
+            --version $version `
+            --urls $installerUrl `
+            --submit `
+            --token $env:WINGET_GITHUB_TOKEN
+
+          if ($LASTEXITCODE -eq 0) {
+            echo ""
+            echo "=========================================="
+            echo "SUCCESS: PR submitted to microsoft/winget-pkgs"
+            echo "=========================================="
+            echo ""
+            echo "Check your GitHub notifications or visit:"
+            echo "https://github.com/microsoft/winget-pkgs/pulls"
+          } else {
+            Write-Error "wingetcreate failed with exit code: $LASTEXITCODE"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Dry run (validate only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
+
+          echo "DRY RUN - Validating manifest update..."
+          echo "Package: SevIQ.ThemeToggle"
+          echo "Version: $version"
+          echo "Installer: $installerUrl"
+
+          # Download and validate without submitting
+          .\wingetcreate.exe update SevIQ.ThemeToggle `
+            --version $version `
+            --urls $installerUrl `
+            --out ./winget-output
+
+          if ($LASTEXITCODE -eq 0) {
+            echo ""
+            echo "Validation successful! Generated manifests:"
+            echo ""
+            Get-ChildItem -Path ./winget-output -Recurse -Filter "*.yaml" | ForEach-Object {
+              echo "=== $($_.Name) ==="
+              Get-Content $_.FullName
+              echo ""
+            }
+          } else {
+            Write-Error "Manifest generation failed"
+            exit 1
+          }
+        shell: pwsh
