@@ -13,7 +13,7 @@
 !define PRODUCT_NAME "ThemeToggle"
 !define PRODUCT_VERSION "1.5.0"
 !define PRODUCT_PUBLISHER "SevIQ"
-!define PRODUCT_WEB_SITE "https://github.com/espensev/DarkToggle"
+!define PRODUCT_WEB_SITE "https://github.com/espensev/ThemeToggle"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_ROOT_KEY "HKCU"
 

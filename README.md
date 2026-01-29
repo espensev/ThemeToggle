@@ -19,7 +19,7 @@ winget install SevIQ.ThemeToggle
 ```
 
 ### Option 2: Manual
-1. Download `ThemeToggle.exe` from [Releases](https://github.com/espensev/DarkToggle/releases)
+1. Download `ThemeToggle.exe` from [Releases](https://github.com/espensev/ThemeToggle/releases)
 2. Run it directly (no installation required)
 
 ## Automation
@@ -139,4 +139,4 @@ Public domain ([Unlicense](https://unlicense.org/)). Use freely in any project.
 ---
 
 **WinGet:** `winget install SevIQ.ThemeToggle`  
-**Issues:** [GitHub Issues](https://github.com/espensev/DarkToggle/issues)
+**Issues:** [GitHub Issues](https://github.com/espensev/ThemeToggle/issues)

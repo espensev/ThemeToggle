@@ -6,12 +6,12 @@ PackageVersion: 1.3.0
 PackageLocale: en-US
 Publisher: SevIQ
 PublisherUrl: https://github.com/espensev
-PublisherSupportUrl: https://github.com/espensev/DarkToggle/issues
+PublisherSupportUrl: https://github.com/espensev/ThemeToggle/issues
 Author: Espen Severinsen
 PackageName: ThemeToggle
-PackageUrl: https://github.com/espensev/DarkToggle
+PackageUrl: https://github.com/espensev/ThemeToggle
 License: Unlicense
-LicenseUrl: https://github.com/espensev/DarkToggle/blob/main/LICENSE.txt
+LicenseUrl: https://github.com/espensev/ThemeToggle/blob/main/LICENSE.txt
 Copyright: Public Domain
 ShortDescription: Ultra-fast Windows theme switcher
 Description: |-
@@ -50,12 +50,12 @@ ReleaseNotes: |-
 
   No runtime behavior changes; performance remains 10-15ms.
 
-  See full changelog at: https://github.com/espensev/DarkToggle/blob/main/docs/RELEASE_NOTES.md
-ReleaseNotesUrl: https://github.com/espensev/DarkToggle/releases/tag/v1.3.0
+  See full changelog at: https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
+ReleaseNotesUrl: https://github.com/espensev/ThemeToggle/releases/tag/v1.3.0
 Documentations:
 - DocumentLabel: Quick Start Guide
-  DocumentUrl: https://github.com/espensev/DarkToggle#quick-start
+  DocumentUrl: https://github.com/espensev/ThemeToggle#quick-start
 - DocumentLabel: Full Documentation
-  DocumentUrl: https://github.com/espensev/DarkToggle/blob/main/README.md
+  DocumentUrl: https://github.com/espensev/ThemeToggle/blob/main/README.md
 ManifestType: defaultLocale
 ManifestVersion: 1.5.0

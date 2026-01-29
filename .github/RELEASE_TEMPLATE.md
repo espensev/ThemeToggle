@@ -18,19 +18,19 @@ Distribution-focused update with installer, automated release pipeline, and WinG
 
 ### Portable Executable (Recommended)
 - `ThemeToggle.exe`
-  - https://github.com/espensev/DarkToggle/releases/download/v1.3.0/ThemeToggle.exe
+  - https://github.com/espensev/ThemeToggle/releases/download/v1.3.0/ThemeToggle.exe
 
 ### Installer
 - `ThemeToggle-Setup-1.3.0.exe`
-  - https://github.com/espensev/DarkToggle/releases/download/v1.3.0/ThemeToggle-Setup-1.3.0.exe
+  - https://github.com/espensev/ThemeToggle/releases/download/v1.3.0/ThemeToggle-Setup-1.3.0.exe
 
 ### Portable ZIP
 - `ThemeToggle-Portable.zip`
-  - https://github.com/espensev/DarkToggle/releases/download/v1.3.0/ThemeToggle-Portable.zip
+  - https://github.com/espensev/ThemeToggle/releases/download/v1.3.0/ThemeToggle-Portable.zip
 
 ### Source Code
-- https://github.com/espensev/DarkToggle/archive/refs/tags/v1.3.0.zip
-- https://github.com/espensev/DarkToggle/archive/refs/tags/v1.3.0.tar.gz
+- https://github.com/espensev/ThemeToggle/archive/refs/tags/v1.3.0.zip
+- https://github.com/espensev/ThemeToggle/archive/refs/tags/v1.3.0.tar.gz
 
 ---
 
@@ -83,8 +83,8 @@ ThemeToggle.vbs           # Silent toggle (for hotkeys)
 Requires Visual Studio 2019+ (MSVC) and Windows SDK.
 
 ```cmd
-git clone https://github.com/espensev/DarkToggle.git
-cd DarkToggle
+git clone https://github.com/espensev/ThemeToggle.git
+cd ThemeToggle
 build.bat
 ```
 
@@ -102,11 +102,11 @@ Output: `ThemeToggle.exe` (~220 KB standalone executable)
 
 ## Documentation
 
-- https://github.com/espensev/DarkToggle/blob/main/README.md
-- https://github.com/espensev/DarkToggle/blob/main/docs/RELEASE_NOTES.md
+- https://github.com/espensev/ThemeToggle/blob/main/README.md
+- https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
 
 ---
 
 ## Support
 
-- https://github.com/espensev/DarkToggle/issues
+- https://github.com/espensev/ThemeToggle/issues
