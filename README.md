@@ -80,16 +80,30 @@ dist\launchers\ThemeToggle.ps1 -Dark     # Force dark
 build.bat
 ```
 
-**Release pipeline:**
-```cmd
-dist\build-release.bat
-dist\update-winget.ps1
-```
-If signing env vars are set, `dist\build-release.bat` signs artifacts automatically.
-
 **Requirements:** Visual Studio 2019+ (MSVC), Windows SDK, NSIS (for installer)
 
 **Build output:** `ThemeToggle.exe` (single-file, no dependencies)
+
+## Release Process
+
+### Automated (GitHub Actions)
+
+Push a version tag to trigger automatic release:
+```cmd
+git tag v1.5.2
+git push origin v1.5.2
+```
+
+This builds all artifacts, calculates SHA256 hashes, and creates a GitHub release.
+
+### Manual
+
+```cmd
+dist\build-release.bat      # Build exe, installer, portable ZIP
+dist\update-winget.ps1      # Update manifests with SHA256
+```
+
+If signing env vars are set, artifacts are signed automatically.
 
 ## Benchmarking
 
@@ -140,14 +154,19 @@ ThemeToggle/
   Resources/
     ThemeToggle.ico             Application icon
     ThemeToggle.manifest        Windows manifest
+  .github/
+    workflows/                  GitHub Actions
+      build.yml                 CI build on push/PR
+      release.yml               Automated release on tag
+      validate-winget.yml       Manifest validation
   dist/
     build-release.bat           Release pipeline
     update-winget.ps1           WinGet manifest updater
     launchers/                  VBS/PS1 silent launchers
   tools/
     signing/sign-release.ps1    Release signing
-    cleanup.bat                 Remove build artifacts
-    validate.bat                Pre-commit validation
+    bump-version.ps1            Version management
+    bench.ps1                   Benchmarking
   winget/                       WinGet package manifests
   ThemeToggle.rc                Resource script
   setup.nsi                     NSIS installer
