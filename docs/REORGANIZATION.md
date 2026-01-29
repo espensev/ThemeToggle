@@ -1,4 +1,4 @@
-# ThemeToggle - Reorganization Complete
+# ThemeToggle - Repository Reorganization (2026-01-17)
 
 ## New Structure
 
@@ -72,16 +72,19 @@ dist\build-release.bat
 cd dist
 .\update-winget.ps1
 
-# 3. Create GitHub release
-# - Upload ThemeToggle-Setup-1.5.2.exe
+# 3. Create GitHub release (tag v<version>)
+# - Upload ThemeToggle-Setup-<version>.exe
 # - Upload ThemeToggle-Portable.zip
 # - Upload ThemeToggle.exe
 
 # 4. Submit to WinGet
 # - Fork microsoft/winget-pkgs
-# - Copy manifests to: manifests/s/SevIQ/ThemeToggle/1.5.2/
+# - Copy manifests to: manifests/s/SevIQ/ThemeToggle/<version>/
 # - Create pull request
 ```
+
+### Automation (GitHub Actions)
+If you use the automated release/tag workflow, the release and WinGet submission are handled by CI after pushing a tag. See [docs/WINGET_SUBMISSION.md](WINGET_SUBMISSION.md) for setup details.
 
 ---
 
@@ -124,14 +127,14 @@ You can now:
    .\update-winget.ps1
    ```
 
-4. **Create GitHub release** (v1.3.0):
-   - Tag: `v1.3.0`
-   - Upload: `ThemeToggle-Setup-1.5.2.exe`
+4. **Create GitHub release** (v<version>):
+   - Tag: `v<version>`
+   - Upload: `ThemeToggle-Setup-<version>.exe`
    - Upload: `ThemeToggle-Portable.zip`
 
 5. **Submit to WinGet:**
    - Fork: https://github.com/microsoft/winget-pkgs
-   - Path: `manifests/s/SevIQ/ThemeToggle/1.5.2/`
+   - Path: `manifests/s/SevIQ/ThemeToggle/<version>/`
    - Create PR with 3 manifest files
 
 ---

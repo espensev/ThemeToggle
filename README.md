@@ -96,7 +96,12 @@ git push origin v1.5.2
 
 This builds all artifacts, calculates SHA256 hashes, creates a GitHub release, and submits to WinGet automatically.
 
-**First-time setup:** Add a `WINGET_GITHUB_TOKEN` secret (see [docs/WINGET_SUBMISSION.md](docs/WINGET_SUBMISSION.md)).
+**First-time setup:**
+- Add a classic PAT (`ghp_`) with `public_repo` as `WINGET_GITHUB_TOKEN` (fine-grained PATs do not work for `winget-pkgs`)
+- Fork `microsoft/winget-pkgs` with the same account as the PAT
+- Ensure `winget/` manifests are current (run `dist/update-winget.ps1` and commit) before the first tag
+
+See [docs/WINGET_SUBMISSION.md](docs/WINGET_SUBMISSION.md).
 
 ### Manual
 

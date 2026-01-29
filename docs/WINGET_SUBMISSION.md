@@ -9,11 +9,14 @@ WinGet packages are submitted via pull request to [microsoft/winget-pkgs](https:
 **Package ID:** `SevIQ.ThemeToggle`
 **Manifest path:** `manifests/s/SevIQ/ThemeToggle/<version>/`
 
+This repo supports both manual submission and an automated GitHub Actions workflow.
+
 ## Prerequisites
 
 1. GitHub account
 2. Fork of [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
 3. Release published on GitHub with installer file
+4. Classic GitHub PAT (for automation) with `public_repo` scope
 
 ## Manifest Files
 
@@ -129,6 +132,7 @@ The repository includes a GitHub Actions workflow that automatically submits to 
    - Name: `WinGet Publish`
    - Scopes: Select `public_repo` only
    - Click "Generate token" and copy the token
+   - **Important:** Fine-grained PATs do not work for `microsoft/winget-pkgs`. Use a classic PAT (starts with `ghp_`).
 
 2. **Add the token as a repository secret:**
    - Go to your repository Settings > Secrets and variables > Actions
@@ -138,6 +142,7 @@ The repository includes a GitHub Actions workflow that automatically submits to 
    - Click "Add secret"
 
 3. **First-time only:** Fork [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) using the same GitHub account as the PAT. This is required for `wingetcreate` to submit PRs.
+4. **First-time only:** Make sure the `winget/` manifests in this repo are current (run `dist/update-winget.ps1` and commit). The workflow uses these manifests when the package does not exist yet.
 
 ### How It Works
 
@@ -145,7 +150,8 @@ After setup, the workflow runs automatically:
 
 1. When you push a version tag (e.g., `v1.5.3`), the Release workflow runs
 2. After Release completes, the WinGet Publish workflow triggers automatically
-3. `wingetcreate` downloads the installer, calculates SHA256, and submits a PR
+3. If the package exists: `wingetcreate update` downloads the installer, calculates SHA256, and submits a PR
+4. If the package is new: `wingetcreate submit` uses the repo's `winget/` manifests to create the initial PR
 4. Check [microsoft/winget-pkgs pulls](https://github.com/microsoft/winget-pkgs/pulls) for your PR
 
 ### Manual Trigger
@@ -161,7 +167,7 @@ You can also trigger the workflow manually:
 
 To test without submitting a PR:
 ```
-gh workflow run winget-publish.yml -f version=1.5.2 -f dry_run=true
+gh workflow run "Publish to WinGet" -f version=1.5.2 -f dry_run=true
 ```
 
 ---
@@ -183,6 +189,8 @@ This automatically:
 - Calculates SHA256
 - Creates manifest files
 - Opens PR (with `--submit` flag)
+
+**Note:** `wingetcreate update` only works if the package already exists in winget-pkgs. For first-time submissions, use `wingetcreate submit` with local manifests.
 
 ## Checklist
 
@@ -212,6 +220,9 @@ Common issues:
 - Invalid URL format
 - Schema version mismatch
 - Trailing whitespace in YAML
+
+### Package Not Found
+If you see `.../manifests/s/SevIQ/ThemeToggle was not found`, the package does not exist in winget-pkgs yet. Use the first-time submission flow (manual or automated) and ensure `winget/` manifests are current.
 
 ### PR Stuck in Review
 - Automated checks take 10-30 minutes
