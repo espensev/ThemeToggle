@@ -67,11 +67,14 @@ x86/
 ThemeToggle.exe
 ThemeToggle-Setup-*.exe
 ThemeToggle-Portable*.zip
+ThemeToggle-BenchExport.zip
+bench.csv
 
 # ===================
 # Deployment
 # ===================
 deploy/
+bench-export/
 # ===================
 # Windows
 # ===================
