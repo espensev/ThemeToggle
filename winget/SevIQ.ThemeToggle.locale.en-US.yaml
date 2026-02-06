@@ -1,8 +1,8 @@
-# Created using wingetcreate 1.5.0.0
+﻿# Created using wingetcreate 1.5.0.0
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.5.0.schema.json
 
 PackageIdentifier: SevIQ.ThemeToggle
-PackageVersion: 1.5.2
+PackageVersion: 1.5.3
 PackageLocale: en-US
 Publisher: SevIQ
 PublisherUrl: https://github.com/espensev
