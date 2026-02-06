@@ -81,7 +81,7 @@ Export for another machine:
 
 ### Visual Studio Build Tools not found
 `build.bat` looks for `vswhere.exe` and common VS install paths. Fix by:
-- Installing Visual Studio Build Tools 2019/2022, or
+- Installing Visual Studio Build Tools 2019+, or
 - Running from a Developer Command Prompt, or
 - Installing VS where it can be discovered.
 

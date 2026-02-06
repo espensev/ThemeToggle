@@ -29,15 +29,19 @@ Common options:
 - `/exitcode` return status as exit code
 - `/kick=all|core|none` (or `/nokick`)
 - `/noflush` skip registry flush
+- `/?` or `/help` show usage
+
+All options also accept `-` or `--` prefixes.
 
 Exit codes:
 - `0` no change needed
 - `1` changed to Light
 - `2` changed to Dark
-- `10` registry access failed
 - `11` registry write failed
-- `20` broadcast failed
+- `12` registry read failed
+- `20` broadcast failed (registry updated)
 - `30` already running
+- `99` unknown error
 
 ## Registry Keys Modified
 
