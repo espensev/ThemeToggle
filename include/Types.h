@@ -8,7 +8,6 @@ enum class ExitCode : int {
     SuccessNoChange = 0,
     ChangedToLight = 1,
     ChangedToDark = 2,
-    RegKeyCreateFailed = 10,
     RegWriteFailed = 11,
     RegReadFailed = 12,
     BroadcastFailed = 20,

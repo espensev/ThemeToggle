@@ -2,7 +2,7 @@
 #include <windows.h>
 
 // Undocumented uxtheme.dll exports (ordinal-only)
-enum PreferredAppMode { Default, AllowDark, ForceDark, ForceLight, Max };
+enum class PreferredAppMode { Default, AllowDark, ForceDark, ForceLight, Max };
 typedef DWORD(WINAPI* fnSetPreferredAppMode)(PreferredAppMode appMode);
 typedef void (WINAPI* fnFlushMenuThemes)();
 typedef void (WINAPI* fnRefreshImmersiveColorPolicyState)();

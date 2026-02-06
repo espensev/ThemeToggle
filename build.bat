@@ -47,7 +47,7 @@ if not defined VSCMD_VER (
     
     if not defined VSINSTALL (
         echo ERROR: Visual Studio Build Tools not found!
-        echo Please install Visual Studio 2019/2022 Build Tools or run from Developer Command Prompt.
+        echo Please install Visual Studio 2019+ Build Tools or run from Developer Command Prompt.
         echo Download: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
         popd
         exit /b 1

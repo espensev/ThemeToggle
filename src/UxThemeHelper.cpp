@@ -49,6 +49,6 @@ void UxThemeHelper::SyncTheme(bool isDark) {
 
     // Set preferred mode (configures dark/light for new windows)
     if (SetPreferredAppMode) {
-        SetPreferredAppMode(isDark ? ForceDark : ForceLight);
+        SetPreferredAppMode(isDark ? PreferredAppMode::ForceDark : PreferredAppMode::ForceLight);
     }
 }

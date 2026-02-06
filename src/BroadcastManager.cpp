@@ -9,13 +9,14 @@ constexpr ULONGLONG KICK_ENUM_CACHE_MS = 1500;
 }
 
 // Stubborn apps
+// { className, extraMessage, needsDirectPost, prefixMatch, isCore }
 static const StubbornApp STUBBORN_APPS[] = {
-    { L"CabinetWClass", WM_THEMECHANGED, true, false, true },                   // File Explorer
-    { L"#32770", WM_SYSCOLORCHANGE, true, false, true },                        // Dialogs
-    { L"OpusApp", WM_SETTINGCHANGE, true, false, true },                        // Office apps
-    { L"CASCADIA_HOSTING_WINDOW_CLASS", WM_SETTINGCHANGE, true, false, true },  // Windows Terminal
-    { L"Chrome_WidgetWin_1", WM_THEMECHANGED, false, false, false },            // Chrome (optional)
-    { L"MozillaWindowClass", WM_THEMECHANGED, false, false, false },            // Firefox (optional)
+    { L"CabinetWClass",                  WM_THEMECHANGED,  true,  false, true  }, // File Explorer
+    { L"#32770",                          WM_SYSCOLORCHANGE, true,  false, true  }, // Dialogs
+    { L"OpusApp",                         WM_SETTINGCHANGE, true,  false, true  }, // Office apps
+    { L"CASCADIA_HOSTING_WINDOW_CLASS",   WM_SETTINGCHANGE, true,  false, true  }, // Windows Terminal
+    { L"Chrome_WidgetWin_1",              WM_THEMECHANGED,  false, false, false }, // Chrome (optional)
+    { L"MozillaWindowClass",              WM_THEMECHANGED,  false, false, false }, // Firefox (optional)
 };
 
 BroadcastManager::BroadcastManager(bool isWindows11) : isWin11(isWindows11) {}
@@ -34,7 +35,7 @@ int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
 }
 
 void BroadcastManager::BroadcastToWindow(HWND hwnd, const wchar_t* message) {
-    if (hwnd && IsWindow(hwnd)) {
+    if (hwnd) {
         if (!SendNotifyMessageW(hwnd, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(message))) {
             hadFailure = true;
         }
@@ -155,12 +156,14 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
         return TRUE;
     }
 
-    LPARAM colorParam = reinterpret_cast<LPARAM>(L"ImmersiveColorSet");
+    LPARAM msgParam = (match->extraMessage == WM_SETTINGCHANGE)
+        ? reinterpret_cast<LPARAM>(L"ImmersiveColorSet")
+        : 0;
 
     // Delivery method selection
     bool success = match->needsDirectPost
-        ? PostMessageW(hwnd, match->extraMessage, 0, colorParam)
-        : SendNotifyMessageW(hwnd, match->extraMessage, 0, colorParam);
+        ? PostMessageW(hwnd, match->extraMessage, 0, msgParam)
+        : SendNotifyMessageW(hwnd, match->extraMessage, 0, msgParam);
 
     if (!success) {
         ctx->manager->hadFailure = true;

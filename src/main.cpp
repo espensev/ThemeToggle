@@ -5,7 +5,6 @@
 #include <sstream>
 #include <vector>
 #include <cstdio>
-#include <cwchar>
 #include <cctype>
 #include <shellapi.h>
 
@@ -92,7 +91,7 @@ private:
     UxThemeHelper uxtheme;
 
     // Windows version check using RtlGetVersion (reliable, no manifest required)
-    bool IsWindows11OrGreater() {
+    static bool IsWindows11OrGreater() {
         using RtlGetVersionPtr = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
         
         HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
@@ -144,19 +143,19 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
     , kickPolicy(kickPolicy)
     , isWin11(IsWindows11OrGreater())
     , broadcaster(isWin11) {
-        
+
     // Load undocumented theme APIs (available on Win10 1903+, but mainly useful on Win11)
     uxtheme.LoadApis();
 
     // Cache console handle
     hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hConsole != INVALID_HANDLE_VALUE && hConsole != nullptr) {
-            DWORD mode;
-            if (!GetConsoleMode(hConsole, &mode)) {
-                hConsole = nullptr;
-            }
+        DWORD mode;
+        if (!GetConsoleMode(hConsole, &mode)) {
+            hConsole = nullptr;
         }
     }
+}
 
     ThemeInfo SetWindowsTheme(bool forceLight, bool forceDark) {
 
@@ -382,7 +381,6 @@ void PrintUsage() {
         "  0  = Success (no change)\n"
         "  1  = Changed to Light\n"
         "  2  = Changed to Dark\n"
-        "  10 = Registry key creation failed\n"
         "  11 = Registry write failed\n"
         "  12 = Registry read failed\n"
         "  20 = Broadcast failed but registry ok\n"

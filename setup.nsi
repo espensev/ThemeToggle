@@ -151,7 +151,6 @@ Section "MainSection" SEC01
 
   ; Calculate installed size
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
-  IntFmt $0 "0x%08X" $0
   WriteRegDWORD ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "EstimatedSize" "$0"
 
   ; Optional: Desktop shortcut
