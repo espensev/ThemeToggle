@@ -38,6 +38,41 @@ void ShowGuiMessage(const std::string& text, UINT icon) {
     auto wide = StringUtils::Utf8ToWide(text);
     MessageBoxW(nullptr, wide.c_str(), L"ThemeToggle", MB_OK | icon);
 }
+
+void ShowGuiSummary(const ThemeInfo& info, bool quiet, bool passThru, bool asExitCode) {
+    if (quiet || passThru || asExitCode) {
+        return;
+    }
+
+    if (g_hasConsole) {
+        return;
+    }
+
+    std::ostringstream msg;
+    UINT icon = MB_ICONINFORMATION;
+
+    if (info.exitCode == ExitCode::AlreadyRunning) {
+        msg << "Another instance is already running.";
+        icon = MB_ICONWARNING;
+    }
+    else if (info.changed) {
+        msg << "Changed to " << info.theme << " theme.";
+        if (!info.broadcastOk) {
+            msg << " (broadcast issue detected)";
+            icon = MB_ICONWARNING;
+        }
+    }
+    else {
+        msg << "Already " << info.theme << " theme.";
+    }
+
+    if (info.stubbornAppsKicked > 0) {
+        msg << "\nKicked " << info.stubbornAppsKicked << " stubborn app"
+            << (info.stubbornAppsKicked == 1 ? "" : "s") << ".";
+    }
+
+    ShowGuiMessage(msg.str(), icon);
+}
 }
 
 class WindowsThemeToggler {
@@ -340,7 +375,9 @@ void PrintUsage() {
         "  /kick=core   Kick core stubborn apps only\n"
         "  /kick=none   Do not kick stubborn apps\n"
         "  /nokick      Alias for /kick=none\n"
-        "  /noflush     Skip registry flush (best-effort)\n\n"
+        "  /noflush     Skip registry flush (best-effort)\n"
+        "  /? /help /h  Show this help\n"
+        "  (All options also accept '-' or '--' prefixes)\n\n"
         "Exit Codes (when /exitcode is used):\n"
         "  0  = Success (no change)\n"
         "  1  = Changed to Light\n"
@@ -366,41 +403,44 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     bool asExitCode = false;
     bool noFlush = false;
     KickPolicy kickPolicy = KickPolicy::All;
+    std::vector<std::string> unknownArgs;
 
     // Parse arguments
     for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
+        std::string originalArg = argv[i] ? argv[i] : "";
+        std::string arg = originalArg;
 
         for (auto& c : arg) {
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         }
 
-        if (arg == "/light" || arg == "-light") {
+        if (arg == "/light" || arg == "-light" || arg == "--light") {
             forceLight = true;
         }
-        else if (arg == "/dark" || arg == "-dark") {
+        else if (arg == "/dark" || arg == "-dark" || arg == "--dark") {
             forceDark = true;
         }
-        else if (arg == "/toggle" || arg == "-toggle") {
+        else if (arg == "/toggle" || arg == "-toggle" || arg == "--toggle") {
             // Default behavior; accepted for explicitness
         }
-        else if (arg == "/quiet" || arg == "-quiet") {
+        else if (arg == "/quiet" || arg == "-quiet" || arg == "--quiet") {
             quiet = true;
         }
-        else if (arg == "/passthru" || arg == "-passthru") {
+        else if (arg == "/passthru" || arg == "-passthru" || arg == "--passthru") {
             passThru = true;
         }
-        else if (arg == "/exitcode" || arg == "-exitcode") {
+        else if (arg == "/exitcode" || arg == "-exitcode" || arg == "--exitcode") {
             asExitCode = true;
         }
-        else if (arg == "/noflush" || arg == "-noflush") {
+        else if (arg == "/noflush" || arg == "-noflush" || arg == "--noflush") {
             noFlush = true;
         }
-        else if (arg == "/nokick" || arg == "-nokick") {
+        else if (arg == "/nokick" || arg == "-nokick" || arg == "--nokick") {
             kickPolicy = KickPolicy::None;
         }
-        else if (arg.rfind("/kick=", 0) == 0 || arg.rfind("-kick=", 0) == 0) {
-            auto value = arg.substr(6);
+        else if (arg.rfind("/kick=", 0) == 0 || arg.rfind("-kick=", 0) == 0 || arg.rfind("--kick=", 0) == 0) {
+            auto valuePos = arg.find('=');
+            auto value = valuePos == std::string::npos ? "" : arg.substr(valuePos + 1);
             if (value == "all") {
                 kickPolicy = KickPolicy::All;
             }
@@ -410,22 +450,37 @@ int RunThemeToggleCli(int argc, char* argv[]) {
             else if (value == "none") {
                 kickPolicy = KickPolicy::None;
             }
+            else {
+                std::cerr << "Warning: Unknown kick policy '" << value << "'; using default (all)." << std::endl;
+            }
         }
-        else if (arg == "/?" || arg == "-?" || arg == "/help" || arg == "-help") {
+        else if (arg == "/?" || arg == "-?" || arg == "/help" || arg == "-help" || arg == "/h" || arg == "-h" || arg == "--help") {
             PrintUsage();
             return 0;
         }
+        else if (!arg.empty()) {
+            unknownArgs.push_back(originalArg);
+        }
+    }
+
+    if (!unknownArgs.empty()) {
+        for (const auto& badArg : unknownArgs) {
+            std::cerr << "Error: Unknown option '" << badArg << "'." << std::endl;
+        }
+        PrintUsage();
+        return asExitCode ? static_cast<int>(ExitCode::UnknownError) : 1;
     }
 
     if (forceLight && forceDark) {
         std::cerr << "Error: /light and /dark cannot be used together." << std::endl;
-        return 1;
+        return asExitCode ? static_cast<int>(ExitCode::UnknownError) : 1;
     }
 
     try {
         WindowsThemeToggler toggler(quiet, passThru, kickPolicy, noFlush);
         ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark);
         toggler.PrintThemeInfo(info);
+        ShowGuiSummary(info, quiet, passThru, asExitCode);
 
         if (asExitCode) {
             return static_cast<int>(info.exitCode);

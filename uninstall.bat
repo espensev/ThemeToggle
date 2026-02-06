@@ -4,6 +4,17 @@ REM ThemeToggle Uninstaller - Remove all automated configurations
 REM ============================================================================
 
 setlocal enabledelayedexpansion
+set autoMode=0
+set noPause=0
+
+for %%A in (%*) do (
+    if /I "%%A"=="/auto" set autoMode=1
+    if /I "%%A"=="/yes" set autoMode=1
+    if /I "%%A"=="/nopause" set noPause=1
+    if /I "%%A"=="/?" goto HELP
+)
+
+if %autoMode%==1 set noPause=1
 
 REM Save current directory and switch to script directory
 pushd "%~dp0"
@@ -18,10 +29,14 @@ echo  - Desktop shortcut
 echo  - Startup entry
 echo  - Scheduled tasks
 echo.
-set /p confirm="Continue? (Y/N): "
-if /i not "%confirm%"=="Y" (
-    echo Cancelled.
-    goto END
+if %autoMode%==0 (
+    set /p confirm="Continue? (Y/N): "
+    if /i not "%confirm%"=="Y" (
+        echo Cancelled.
+        goto END
+    )
+) else (
+    echo Auto mode selected. Proceeding without confirmation.
 )
 
 echo.
@@ -78,6 +93,15 @@ echo.
 :END
 REM Restore original directory
 popd
-pause
+if %noPause%==0 pause
 endlocal
+exit /b 0
+
+:HELP
+echo.
+echo Usage: uninstall.bat [options]
+echo   /auto          Run without confirmation
+echo   /yes           Alias for /auto
+echo   /nopause       Skip final pause prompt
+echo   /?             Show this help
 exit /b 0

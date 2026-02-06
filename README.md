@@ -61,6 +61,9 @@ dist\launchers\ThemeToggle.ps1 -Dark     # Force dark
 | `/kick=none` | Do not kick stubborn apps |
 | `/nokick` | Alias for `/kick=none` |
 | `/noflush` | Skip registry flush (best-effort) |
+| `/?` or `/help` | Show usage |
+
+All options also accept `-` or `--` prefixes.
 
 ## Exit Codes
 
@@ -69,10 +72,11 @@ dist\launchers\ThemeToggle.ps1 -Dark     # Force dark
 | `0` | No change needed |
 | `1` | Changed to Light |
 | `2` | Changed to Dark |
-| `10` | Registry access failed |
 | `11` | Registry write failed |
-| `20` | Broadcast failed |
+| `12` | Registry read failed |
+| `20` | Broadcast failed (registry updated) |
 | `30` | Already running |
+| `99` | Unknown error |
 
 ## Development & Release Docs
 

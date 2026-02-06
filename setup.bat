@@ -7,6 +7,7 @@ REM   /noStartup   -> Do not add to startup (Run key)
 REM   /noShortcut  -> Do not create desktop shortcut
 REM   /minimal     -> Perform no actions (verify presence only) then exit
 REM   /auto        -> Perform all available actions except those explicitly skipped
+REM   /nopause     -> Skip final pause prompt
 REM   /?           -> Help
 REM ============================================================================
 setlocal enabledelayedexpansion
@@ -17,6 +18,7 @@ set skipStartup=0
 set skipShortcut=0
 set autoMode=0
 set minimalMode=0
+set noPause=0
 
 for %%A in (%*) do (
   if /I "%%A"=="/noTasks" set skipTasks=1
@@ -24,8 +26,11 @@ for %%A in (%*) do (
   if /I "%%A"=="/noShortcut" set skipShortcut=1
   if /I "%%A"=="/auto" set autoMode=1
   if /I "%%A"=="/minimal" set minimalMode=1
+  if /I "%%A"=="/nopause" set noPause=1
   if /I "%%A"=="/?" goto HELP
 )
+
+if %autoMode%==1 set noPause=1
 
 :START
 REM Save current directory and switch to script directory
@@ -196,7 +201,6 @@ if %autoMode%==1 (
   if %skipTasks%==0 echo  - Scheduled tasks
 )
 echo.
-pause
 goto END
 
 :HELP
@@ -207,6 +211,7 @@ echo   /noStartup     Skip adding Run key startup entry
 echo   /noShortcut    Skip desktop shortcut creation
 echo   /auto          Execute all non-skipped actions without interaction
 echo   /minimal       Verify executable only, perform no actions
+echo   /nopause       Skip final pause prompt
 echo   /?             Show this help
 exit /b 0
 
@@ -217,5 +222,5 @@ echo For more information see README.md
 echo.
 popd
 endlocal
-Pause 
+if %noPause%==0 pause
 exit /b 0
