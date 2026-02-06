@@ -35,10 +35,12 @@ int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
 }
 
 void BroadcastManager::BroadcastToWindow(HWND hwnd, const wchar_t* message) {
-    if (hwnd) {
-        if (!SendNotifyMessageW(hwnd, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(message))) {
-            hadFailure = true;
-        }
+    if (!hwnd || !IsWindow(hwnd)) {
+        return;
+    }
+
+    if (!SendNotifyMessageW(hwnd, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(message))) {
+        hadFailure = true;
     }
 }
 
