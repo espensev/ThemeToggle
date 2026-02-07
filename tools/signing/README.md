@@ -5,12 +5,12 @@ This folder contains the release signing script.
 ## Usage
 
 ```powershell
-.\sign-release.ps1 -Version 1.5.3
+.\sign-release.ps1 -Version 1.5.4
 ```
 
 The script signs:
 - `ThemeToggle.exe`
-- `ThemeToggle-Setup-1.5.3.exe`
+- `ThemeToggle-Setup-1.5.4.exe`
 
 ## Configuration (choose one)
 
@@ -33,6 +33,12 @@ Set the PFX path and password (or leave the password unset to prompt):
 ```
 setx THEMETOGGLE_SIGN_PFX_PATH "C:\path\to\cert.pfx"
 setx THEMETOGGLE_SIGN_PFX_PASSWORD "your-password"
+```
+
+The signing script also accepts common env var names used by some local helpers:
+```
+setx PFX_PATH "C:\path\to\cert.pfx"
+setx PFX_PASS "your-password"
 ```
 
 ## Optional settings
