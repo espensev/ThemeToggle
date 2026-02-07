@@ -55,7 +55,8 @@ function Get-CurrentVersion {
 }
 
 function Test-SigningConfigured {
-    return ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT -or $env:THEMETOGGLE_SIGN_PFX_PATH)
+    # Support both repo-specific vars and common local vars (PFX_PATH/PFX_PASS).
+    return ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT -or $env:THEMETOGGLE_SIGN_PFX_PATH -or $env:PFX_PATH)
 }
 
 # ============================================================================

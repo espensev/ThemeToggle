@@ -34,28 +34,8 @@ jobs:
 
       - name: Build executable
         run: |
-          echo "Building ThemeToggle.exe..."
-
-          # Clean previous artifacts
-          Remove-Item -Force *.obj, *.res -ErrorAction SilentlyContinue
-
-          # Compile resources
-          rc ThemeToggle.rc
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          # Compile source files
-          cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG /I include src\main.cpp src\RegistryManager.cpp src\BroadcastManager.cpp src\UxThemeHelper.cpp
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          # Link
-          link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /OUT:ThemeToggle.exe main.obj RegistryManager.obj BroadcastManager.obj UxThemeHelper.obj ThemeToggle.res user32.lib advapi32.lib dwmapi.lib shell32.lib
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          # Cleanup
-          Remove-Item -Force *.obj, ThemeToggle.res -ErrorAction SilentlyContinue
-
-          echo "Build completed successfully"
-        shell: pwsh
+          call build.bat
+        shell: cmd
 
       - name: Verify executable
         run: |

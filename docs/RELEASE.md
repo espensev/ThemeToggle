@@ -55,6 +55,9 @@ If a signing cert is available, the pipeline will auto-sign:
 - `THEMETOGGLE_SIGN_CERT_THUMBPRINT` (recommended)
 - or `THEMETOGGLE_SIGN_PFX_PATH` + `THEMETOGGLE_SIGN_PFX_PASSWORD`
 
+Aliases (supported by `tools/signing/sign-release.ps1`):
+- `PFX_PATH` + `PFX_PASS`
+
 Optional:
 - `THEMETOGGLE_SIGN_TIMESTAMP_URL`
 - `THEMETOGGLE_SIGN_DESCRIPTION`
