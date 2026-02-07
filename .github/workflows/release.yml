@@ -55,76 +55,10 @@ jobs:
           echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
         shell: pwsh
 
-      - name: Build executable
+      - name: Build release artifacts
         run: |
-          echo "Building ThemeToggle.exe..."
-
-          # Clean
-          Remove-Item -Force *.obj, *.res -ErrorAction SilentlyContinue
-
-          # Compile resources
-          rc ThemeToggle.rc
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          # Compile source
-          cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG /I include src\main.cpp src\RegistryManager.cpp src\BroadcastManager.cpp src\UxThemeHelper.cpp
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          # Link
-          link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /OUT:ThemeToggle.exe main.obj RegistryManager.obj BroadcastManager.obj UxThemeHelper.obj ThemeToggle.res user32.lib advapi32.lib dwmapi.lib shell32.lib
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          # Cleanup intermediate files
-          Remove-Item -Force *.obj, ThemeToggle.res -ErrorAction SilentlyContinue
-
-          $info = Get-Item "ThemeToggle.exe"
-          echo "Built: ThemeToggle.exe ($([math]::Round($info.Length/1KB)) KB)"
-        shell: pwsh
-
-      - name: Build NSIS installer
-        run: |
-          echo "Building NSIS installer..."
-          makensis /V2 setup.nsi
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $installer = "ThemeToggle-Setup-$version.exe"
-
-          if (Test-Path $installer) {
-            $info = Get-Item $installer
-            echo "Built: $installer ($([math]::Round($info.Length/1KB)) KB)"
-          } else {
-            Write-Error "Installer not found: $installer"
-            exit 1
-          }
-        shell: pwsh
-
-      - name: Create portable ZIP
-        run: |
-          echo "Creating portable package..."
-
-          # Create deploy folder
-          New-Item -ItemType Directory -Force -Path "deploy\ThemeToggle" | Out-Null
-          New-Item -ItemType Directory -Force -Path "deploy\ThemeToggle\Resources" | Out-Null
-
-          # Copy files
-          Copy-Item "ThemeToggle.exe" "deploy\ThemeToggle\" -Force
-          Copy-Item "dist\launchers\ThemeToggle.ps1" "deploy\ThemeToggle\" -Force
-          Copy-Item "LICENSE.txt" "deploy\ThemeToggle\" -Force
-          Copy-Item "README.md" "deploy\ThemeToggle\" -Force
-          Copy-Item "dist\launchers\ThemeToggle.vbs" "deploy\ThemeToggle\" -Force
-          Copy-Item "dist\launchers\ThemeToggle-Light.vbs" "deploy\ThemeToggle\" -Force
-          Copy-Item "dist\launchers\ThemeToggle-Dark.vbs" "deploy\ThemeToggle\" -Force
-          Copy-Item "setup.bat" "deploy\ThemeToggle\" -Force
-          Copy-Item "uninstall.bat" "deploy\ThemeToggle\" -Force
-          Copy-Item "Resources\ThemeToggle.ico" "deploy\ThemeToggle\Resources\" -Force
-
-          # Create ZIP
-          Compress-Archive -Path "deploy\ThemeToggle\*" -DestinationPath "ThemeToggle-Portable.zip" -Force
-
-          $info = Get-Item "ThemeToggle-Portable.zip"
-          echo "Built: ThemeToggle-Portable.zip ($([math]::Round($info.Length/1KB)) KB)"
-        shell: pwsh
+          call dist\build-release.bat
+        shell: cmd
 
       - name: Calculate SHA256 hashes
         id: hashes

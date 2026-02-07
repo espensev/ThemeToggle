@@ -166,9 +166,14 @@ if ($thumbprint) {
     }
 }
 else {
+    # Support both repo-specific env vars and common local env var names.
+    # `PFX_PATH`/`PFX_PASS` are used by some local signing helpers (for example, a `Sign-File` script).
     $pfxPath = $env:THEMETOGGLE_SIGN_PFX_PATH
     if (-not $pfxPath) {
-        Write-Error "Set THEMETOGGLE_SIGN_PFX_PATH or THEMETOGGLE_SIGN_CERT_THUMBPRINT."
+        $pfxPath = $env:PFX_PATH
+    }
+    if (-not $pfxPath) {
+        Write-Error "Set THEMETOGGLE_SIGN_PFX_PATH (or PFX_PATH) or THEMETOGGLE_SIGN_CERT_THUMBPRINT."
         exit 1
     }
     if (-not (Test-Path $pfxPath)) {
@@ -177,6 +182,9 @@ else {
     }
 
     $password = $env:THEMETOGGLE_SIGN_PFX_PASSWORD
+    if (-not $password) {
+        $password = $env:PFX_PASS
+    }
     if (-not $password) {
         $secure = Read-Host "Enter PFX password" -AsSecureString
         $password = Get-PlainTextFromSecureString $secure

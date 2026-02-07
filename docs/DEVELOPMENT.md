@@ -9,6 +9,11 @@ This page covers local build, tooling, and benchmarking.
 build.bat
 ```
 
+Optional (sign after build):
+```cmd
+build.bat /sign
+```
+
 2) Run a quick help check:
 ```cmd
 ThemeToggle.exe /?
