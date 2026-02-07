@@ -31,6 +31,22 @@ Detailed technical notes for each release.
 
 ---
 
+## Version 1.5.4 - "Documentation & Tooling" (2026-02-07)
+
+### Highlights
+- Improved project documentation with an automated inventory system.
+- Organized build-related scripts for better maintainability.
+
+### Packaging / Tooling
+- Relocated `test_vcvars.bat` to the `tools/` directory.
+- Added `tools/inventory.ps1` to automatically generate a repository file inventory.
+- Updated technical documentation index in `docs/README.md`.
+
+### Notes
+- This is a maintenance release focused on repository organization and documentation. No runtime behavior changes were made.
+
+---
+
 ## Version 1.3.0 - "Distribution Pipeline" (2026-01-17)
 
 ### Packaging and Distribution

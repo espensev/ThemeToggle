@@ -8,6 +8,7 @@ This folder contains technical documentation for developers and contributors.
 - [RELEASE.md](RELEASE.md) - release pipeline and WinGet publishing
 - [TECHNICAL.md](TECHNICAL.md) - architecture, registry keys, project structure
 - [RELEASE_NOTES.md](RELEASE_NOTES.md) - technical release notes per version
+- [INVENTORY.md](INVENTORY.md) - repository file/folder inventory (generated)
 
 ## See Also
 

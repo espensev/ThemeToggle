@@ -2,6 +2,22 @@
 setlocal EnableDelayedExpansion
 REM Build script for ThemeToggle.exe
 
+REM Optional flags:
+REM   /sign   Sign ThemeToggle.exe after build (requires signing env vars; see tools\signing\README.md)
+REM   --help  Show help
+
+set DO_SIGN=0
+set "ARG1=%~1"
+set "ARG2=%~2"
+
+if /I "!ARG1!"=="/sign" set DO_SIGN=1
+if /I "!ARG1!"=="--help" goto USAGE
+if /I "!ARG1!"=="/?" goto USAGE
+
+if /I "!ARG2!"=="/sign" set DO_SIGN=1
+if /I "!ARG2!"=="--help" goto USAGE
+if /I "!ARG2!"=="/?" goto USAGE
+
 REM Save current directory and switch to script directory
 pushd "%~dp0"
 
@@ -25,18 +41,12 @@ if not defined VSCMD_VER (
     if not defined VSINSTALL (
         echo vswhere.exe not found, trying common paths...
         
-        REM VS 2026 (version 18) - Check all locations
+        REM VS 2026 (version 18)
         if exist "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" (
             set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
         )
-        if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\Insiders\VC\Auxiliary\Build\vcvarsall.bat"
-        )
         if not defined VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
             set "VSINSTALL=C:\Program Files\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-        )
-        if not defined VSINSTALL if exist "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" (
-            set "VSINSTALL=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
         )
         
         REM VS 2022
@@ -47,8 +57,6 @@ if not defined VSCMD_VER (
     
     if not defined VSINSTALL (
         echo ERROR: Visual Studio Build Tools not found!
-        echo Please install Visual Studio 2019+ Build Tools or run from Developer Command Prompt.
-        echo Download: https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
         popd
         exit /b 1
     )
@@ -61,18 +69,14 @@ if not defined VSCMD_VER (
         exit /b 1
     )
     echo Environment initialized.
-    echo.
 )
 
 echo Building ThemeToggle (Release)...
-echo.
 
-REM Clean previous build artifacts
-echo [0/4] Cleaning...
+REM Clean
 del *.obj *.res 2>nul
 
 REM Step 1: Compile resource file
-echo [1/4] Compiling resources (Resources\ThemeToggle.ico)...
 rc ThemeToggle.rc
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Resource compilation failed!
@@ -81,7 +85,6 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 REM Step 2: Compile C++ source files
-echo [2/4] Compiling source files...
 cl /c /EHsc /std:c++17 /W4 /O2 /MT /DNDEBUG /I include src\main.cpp src\RegistryManager.cpp src\BroadcastManager.cpp src\UxThemeHelper.cpp
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Compilation failed!
@@ -89,8 +92,7 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM Step 3: Link object files and resources
-echo [3/4] Linking...
+REM Step 3: Link
 link /SUBSYSTEM:WINDOWS /ENTRY:wWinMainCRTStartup /OUT:ThemeToggle.exe main.obj RegistryManager.obj BroadcastManager.obj UxThemeHelper.obj ThemeToggle.res user32.lib advapi32.lib dwmapi.lib shell32.lib
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Linking failed!
@@ -98,19 +100,20 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM Step 4: Cleanup intermediate files
-echo [4/4] Cleaning up...
+REM Step 4: Cleanup
 del *.obj 2>nul
 del ThemeToggle.res 2>nul
 
-echo.
-echo ===================================
-echo Build completed successfully!
-echo ===================================
-echo.
-echo Output: ThemeToggle.exe (~220 KB)
-echo Icon: Resources\ThemeToggle.ico
-echo.
+REM Optional: Sign
+if %DO_SIGN%==1 (
+    echo Signing ThemeToggle.exe...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "tools\signing\sign-release.ps1" -Target exe
+)
 
-REM Restore original directory
+echo Build completed successfully!
 popd
+exit /b 0
+
+:USAGE
+echo Usage: build.bat [/sign]
+exit /b 0
