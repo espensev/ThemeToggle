@@ -13,7 +13,7 @@ InstallModes:
 - silent
 - silentWithProgress
 UpgradeBehavior: install
-ReleaseDate: 2026-02-07
+ReleaseDate: 2026-02-08
 Installers:
 - Architecture: x64
   InstallerUrl: https://github.com/espensev/ThemeToggle/releases/download/v1.5.4/ThemeToggle-Setup-1.5.4.exe

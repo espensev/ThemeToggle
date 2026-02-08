@@ -160,7 +160,8 @@ Section "MainSection" SEC01
 
   ; Optional: Add to startup
   ${If} $AddToStartup == ${BST_CHECKED}
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}" '"$INSTDIR\ThemeToggle.vbs"'
+    ; Use wscript.exe explicitly (more robust than relying on .vbs file association).
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}" '"$SYSDIR\wscript.exe" "$INSTDIR\ThemeToggle.vbs"'
   ${EndIf}
 
   ; Optional: Create scheduled tasks
