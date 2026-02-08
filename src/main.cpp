@@ -17,16 +17,37 @@
 namespace {
 bool g_hasConsole = false;
 
+bool StdHandleIsInvalid(DWORD stdHandle) {
+    HANDLE h = GetStdHandle(stdHandle);
+    if (h == nullptr || h == INVALID_HANDLE_VALUE) {
+        return true;
+    }
+
+    // GetFileType returns FILE_TYPE_UNKNOWN both on invalid handles and for some unknown types.
+    // Use GetLastError to disambiguate.
+    SetLastError(ERROR_SUCCESS);
+    DWORD type = GetFileType(h);
+    DWORD err = GetLastError();
+    return (type == FILE_TYPE_UNKNOWN && err != ERROR_SUCCESS);
+}
+
 void EnsureConsoleStreams() {
     if (!g_hasConsole) {
         return;
     }
+
+    // Don't stomp over redirected stdout/stderr (files/pipes). Only rebind streams if the
+    // corresponding Win32 std handle is missing/invalid.
     FILE* fp = nullptr;
-    if (freopen_s(&fp, "CONOUT$", "w", stdout) != 0) {
-        g_hasConsole = false;
+    if (StdHandleIsInvalid(STD_OUTPUT_HANDLE)) {
+        if (freopen_s(&fp, "CONOUT$", "w", stdout) != 0) {
+            g_hasConsole = false;
+        }
     }
-    if (freopen_s(&fp, "CONOUT$", "w", stderr) != 0) {
-        g_hasConsole = false;
+    if (StdHandleIsInvalid(STD_ERROR_HANDLE)) {
+        if (freopen_s(&fp, "CONOUT$", "w", stderr) != 0) {
+            g_hasConsole = false;
+        }
     }
 }
 
@@ -486,7 +507,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     }
     catch (const ThemeToggleError& tex) {
         std::cerr << "Error: " << tex.what() << std::endl;
-        if (!g_hasConsole) {
+        if (!g_hasConsole && !quiet && !asExitCode) {
             ShowGuiMessage(tex.what(), MB_ICONERROR);
         }
 
@@ -497,7 +518,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     }
     catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
-        if (!g_hasConsole) {
+        if (!g_hasConsole && !quiet && !asExitCode) {
             ShowGuiMessage(ex.what(), MB_ICONERROR);
         }
 

@@ -4,7 +4,7 @@
 # Purpose: Launch ThemeToggle.exe silently without showing console
 # Advantages over VBS:
 #   - Better error handling
-#   - Can capture exit codes
+#   - Can capture exit codes (use -Wait)
 #   - More flexible argument passing
 # ============================================================================
 
@@ -12,7 +12,8 @@ param(
     [switch]$Light,
     [switch]$Dark,
     [switch]$Toggle,
-    [switch]$ShowWindow
+    [switch]$ShowWindow,
+    [switch]$Wait
 )
 
 # Get script directory and exe path
@@ -28,15 +29,15 @@ if (-not (Test-Path $exePath)) {
 }
 
 # Build arguments
-$args = @("/quiet")
-if ($Light) { $args += "/light" }
-elseif ($Dark) { $args += "/dark" }
-else { $args += "/toggle" }
+$ttArgs = @("/quiet")
+if ($Light) { $ttArgs += "/light" }
+elseif ($Dark) { $ttArgs += "/dark" }
+else { $ttArgs += "/toggle" }
 
 # Create process start info for hidden window
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $exePath
-$psi.Arguments = $args -join " "
+$psi.Arguments = $ttArgs -join " "
 $psi.WindowStyle = if ($ShowWindow) { "Normal" } else { "Hidden" }
 $psi.CreateNoWindow = -not $ShowWindow
 $psi.UseShellExecute = $false
@@ -45,10 +46,12 @@ $psi.UseShellExecute = $false
 try {
     $process = [System.Diagnostics.Process]::Start($psi)
     
-    # Don't wait - instant return for maximum responsiveness
-    # $process.WaitForExit()
-    # exit $process.ExitCode
-    
+    if ($Wait) {
+        $process.WaitForExit()
+        exit $process.ExitCode
+    }
+
+    # Default: don't wait (instant return for maximum responsiveness)
     exit 0
 }
 catch {

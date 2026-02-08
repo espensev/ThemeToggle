@@ -31,19 +31,26 @@ Detailed technical notes for each release.
 
 ---
 
-## Version 1.5.4 - "Documentation & Tooling" (2026-02-07)
+## Version 1.5.4 - "Documentation & Tooling" (2026-02-08)
 
 ### Highlights
 - Improved project documentation with an automated inventory system.
 - Organized build-related scripts for better maintainability.
+- Small CLI reliability fixes (redirection/piping + truly silent `/quiet`).
+
+### Behavior
+- Preserve stdout/stderr redirection and pipes (no longer forces `CONOUT$` when output is redirected).
+- `/quiet` and `/exitcode` no longer show GUI error dialogs when launched without a console.
 
 ### Packaging / Tooling
 - Relocated `test_vcvars.bat` to the `tools/` directory.
 - Added `tools/inventory.ps1` to automatically generate a repository file inventory.
 - Updated technical documentation index in `docs/README.md`.
+- PowerShell launcher supports `-Wait` and no longer shadows PowerShell's automatic `$args`.
+- NSIS startup entry runs `wscript.exe` explicitly (avoids reliance on `.vbs` file association).
 
 ### Notes
-- This is a maintenance release focused on repository organization and documentation. No runtime behavior changes were made.
+- This is primarily a maintenance release; runtime changes are limited to CLI/automation reliability.
 
 ---
 
