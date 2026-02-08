@@ -92,5 +92,4 @@ Public domain ([Unlicense](https://unlicense.org/)). Use freely in any project.
 
 ---
 
-**WinGet:** `winget install SevIQ.ThemeToggle`  
 **Issues:** [GitHub Issues](https://github.com/espensev/ThemeToggle/issues)
