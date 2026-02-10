@@ -167,8 +167,8 @@ Section "MainSection" SEC01
   ; Optional: Create scheduled tasks
   ${If} $CreateScheduledTasks == ${BST_CHECKED}
     DetailPrint "Creating scheduled tasks..."
-    ExecWait 'schtasks /create /tn "ThemeToggle-Morning" /tr "\"$INSTDIR\ThemeToggle-Light.vbs\"" /sc daily /st 07:00 /f'
-    ExecWait 'schtasks /create /tn "ThemeToggle-Evening" /tr "\"$INSTDIR\ThemeToggle-Dark.vbs\"" /sc daily /st 19:00 /f'
+    ExecWait 'schtasks /create /tn "ThemeToggle-Morning" /tr "\"$INSTDIR\ThemeToggle.exe\" /light /quiet" /sc daily /st 07:00 /f'
+    ExecWait 'schtasks /create /tn "ThemeToggle-Evening" /tr "\"$INSTDIR\ThemeToggle.exe\" /dark /quiet" /sc daily /st 19:00 /f'
   ${EndIf}
 SectionEnd
 

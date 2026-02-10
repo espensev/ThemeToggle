@@ -150,9 +150,9 @@ exit /b 0
 echo.
 echo Creating scheduled tasks...
 echo.
-schtasks /create /tn "ThemeToggle-Morning" /tr "wscript.exe \"%CD%\ThemeToggle-Light.vbs\"" /sc daily /st 07:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Morning" /tr "\"%CD%\ThemeToggle.exe\" /light /quiet" /sc daily /st 07:00 /f >nul 2>&1
 if !errorlevel! equ 0 (echo [OK] Morning Light @ 07:00) else (echo [FAIL] Morning task)
-schtasks /create /tn "ThemeToggle-Evening" /tr "wscript.exe \"%CD%\ThemeToggle-Dark.vbs\"" /sc daily /st 19:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Evening" /tr "\"%CD%\ThemeToggle.exe\" /dark /quiet" /sc daily /st 19:00 /f >nul 2>&1
 if !errorlevel! equ 0 (echo [OK] Evening Dark @ 19:00) else (echo [FAIL] Evening task)
 echo.
 echo To modify times use Task Scheduler (taskschd.msc).
@@ -161,9 +161,9 @@ if not "%choice%"=="4" pause & goto MENU
 goto SUCCESS
 
 :SCHEDULED_AUTO
-schtasks /create /tn "ThemeToggle-Morning" /tr "wscript.exe \"%CD%\ThemeToggle-Light.vbs\"" /sc daily /st 07:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Morning" /tr "\"%CD%\ThemeToggle.exe\" /light /quiet" /sc daily /st 07:00 /f >nul 2>&1
 if !errorlevel! equ 0 echo [OK] Morning task created.
-schtasks /create /tn "ThemeToggle-Evening" /tr "wscript.exe \"%CD%\ThemeToggle-Dark.vbs\"" /sc daily /st 19:00 /f >nul 2>&1
+schtasks /create /tn "ThemeToggle-Evening" /tr "\"%CD%\ThemeToggle.exe\" /dark /quiet" /sc daily /st 19:00 /f >nul 2>&1
 if !errorlevel! equ 0 echo [OK] Evening task created.
 exit /b 0
 
