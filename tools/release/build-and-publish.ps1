@@ -219,36 +219,32 @@ function Update-WingetManifests {
     }
 
     $releaseBase = "https://github.com/$repoSlug/releases/download/v$Ver"
-    $urlValues = @(
-        "$releaseBase/ThemeToggle-Setup-$Ver.exe",
-        "$releaseBase/ThemeToggle-Portable.zip"
-    )
-    $urlState = @{ Index = 0 }
-    $content = [regex]::Replace($content, '(?m)^(\s*InstallerUrl:\s*).+$', {
-        param($match)
-        $i = $urlState.Index
-        if ($i -ge $urlValues.Count) {
-            return $match.Value
-        }
+    $installerUrl = "$releaseBase/ThemeToggle-Setup-$Ver.exe"
+    $portableUrl = "$releaseBase/ThemeToggle-Portable.zip"
 
-        $replacement = $match.Groups[1].Value + $urlValues[$i]
-        $urlState.Index++
-        return $replacement
-    })
-
+    # Replace line-by-line to avoid PowerShell closure scoping issues with [regex]::Replace
+    $lines = $content -split "`n"
+    $urlIndex = 0
+    $shaIndex = 0
+    $urlValues = @($installerUrl, $portableUrl)
     $shaValues = @($installerSha256, $portableSha256)
-    $shaState = @{ Index = 0 }
-    $content = [regex]::Replace($content, '(?m)^(\s*InstallerSha256:\s*).+$', {
-        param($match)
-        $i = $shaState.Index
-        if ($i -ge $shaValues.Count) {
-            return $match.Value
-        }
 
-        $replacement = $match.Groups[1].Value + $shaValues[$i]
-        $shaState.Index++
-        return $replacement
-    })
+    for ($j = 0; $j -lt $lines.Count; $j++) {
+        if ($lines[$j] -match '^(\s*InstallerUrl:\s*)\S') {
+            if ($urlIndex -lt $urlValues.Count) {
+                $lines[$j] = $Matches[1] + $urlValues[$urlIndex]
+                $urlIndex++
+            }
+        }
+        elseif ($lines[$j] -match '^(\s*InstallerSha256:\s*)\S') {
+            if ($shaIndex -lt $shaValues.Count) {
+                $lines[$j] = $Matches[1] + $shaValues[$shaIndex]
+                $shaIndex++
+            }
+        }
+    }
+
+    $content = $lines -join "`n"
 
     if ($urlIndex -lt $urlValues.Count -or $shaIndex -lt $shaValues.Count) {
         Write-Warn "Installer manifest did not contain the expected installer and portable entries."
