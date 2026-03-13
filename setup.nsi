@@ -111,14 +111,8 @@ Section "MainSection" SEC01
 
   ; Core files
   File "ThemeToggle.exe"
-  File "dist\launchers\ThemeToggle.ps1"
   File "LICENSE.txt"
   File "README.md"
-
-  ; Launcher scripts
-  File "dist\launchers\ThemeToggle.vbs"
-  File "dist\launchers\ThemeToggle-Light.vbs"
-  File "dist\launchers\ThemeToggle-Dark.vbs"
 
   ; Setup and uninstall scripts
   File "setup.bat"
@@ -128,11 +122,11 @@ Section "MainSection" SEC01
   SetOutPath "$INSTDIR\Resources"
   File "Resources\ThemeToggle.ico"
 
-  ; Create Start Menu shortcuts
+  ; Create Start Menu shortcuts that invoke the GUI-subsystem exe directly.
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ThemeToggle.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Light Mode.lnk" "$INSTDIR\ThemeToggle-Light.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Dark Mode.lnk" "$INSTDIR\ThemeToggle-Dark.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ThemeToggle.exe" "/quiet" "$INSTDIR\Resources\ThemeToggle.ico" 0
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Light Mode.lnk" "$INSTDIR\ThemeToggle.exe" "/light /quiet" "$INSTDIR\Resources\ThemeToggle.ico" 0
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Dark Mode.lnk" "$INSTDIR\ThemeToggle.exe" "/dark /quiet" "$INSTDIR\Resources\ThemeToggle.ico" 0
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Setup.lnk" "$INSTDIR\setup.bat" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\uninstall.bat" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
 
@@ -155,13 +149,12 @@ Section "MainSection" SEC01
 
   ; Optional: Desktop shortcut
   ${If} $CreateShortcut == ${BST_CHECKED}
-    CreateShortCut "$DESKTOP\Toggle Theme.lnk" "$INSTDIR\ThemeToggle.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
+    CreateShortCut "$DESKTOP\Toggle Theme.lnk" "$INSTDIR\ThemeToggle.exe" "/quiet" "$INSTDIR\Resources\ThemeToggle.ico" 0
   ${EndIf}
 
   ; Optional: Add to startup
   ${If} $AddToStartup == ${BST_CHECKED}
-    ; Use wscript.exe explicitly (more robust than relying on .vbs file association).
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}" '"$SYSDIR\wscript.exe" "$INSTDIR\ThemeToggle.vbs"'
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCT_NAME}" '"$INSTDIR\ThemeToggle.exe" /quiet'
   ${EndIf}
 
   ; Optional: Create scheduled tasks
@@ -174,7 +167,7 @@ SectionEnd
 
 ; Desktop shortcut function (called from finish page)
 Function CreateDesktopShortcut
-  CreateShortCut "$DESKTOP\Toggle Theme.lnk" "$INSTDIR\ThemeToggle.vbs" "" "$INSTDIR\Resources\ThemeToggle.ico" 0
+  CreateShortCut "$DESKTOP\Toggle Theme.lnk" "$INSTDIR\ThemeToggle.exe" "/quiet" "$INSTDIR\Resources\ThemeToggle.ico" 0
 FunctionEnd
 
 ; Uninstaller section
@@ -194,10 +187,6 @@ Section Uninstall
 
   ; Remove files
   Delete "$INSTDIR\ThemeToggle.exe"
-  Delete "$INSTDIR\ThemeToggle.ps1"
-  Delete "$INSTDIR\ThemeToggle.vbs"
-  Delete "$INSTDIR\ThemeToggle-Light.vbs"
-  Delete "$INSTDIR\ThemeToggle-Dark.vbs"
   Delete "$INSTDIR\setup.bat"
   Delete "$INSTDIR\uninstall.bat"
   Delete "$INSTDIR\LICENSE.txt"

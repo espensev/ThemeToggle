@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to publish (e.g., 1.5.2)'
+        description: 'Version to publish (e.g., 1.6.0)'
         required: true
         type: string
       dry_run:
@@ -22,6 +22,10 @@ on:
         required: false
         default: false
         type: boolean
+
+permissions:
+  actions: read
+  contents: read
 
 jobs:
   publish:
@@ -32,6 +36,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download generated release manifests
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: winget-manifests
+          path: generated-release
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Restore generated release manifests
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          Copy-Item "generated-release\VERSION" "VERSION" -Force
+          Copy-Item "generated-release\winget\*.yaml" "winget\" -Force
+        shell: pwsh
 
       - name: Get version from release
         id: version
@@ -53,60 +73,56 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
           $tag = "v$version"
-          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/$tag/ThemeToggle-Setup-$version.exe"
+          $releaseBase = "https://github.com/${{ github.repository }}/releases/download/$tag"
+          $installerUrl = "$releaseBase/ThemeToggle-Setup-$version.exe"
+          $portableUrl = "$releaseBase/ThemeToggle-Portable.zip"
+          $releaseAssets = @($installerUrl, $portableUrl)
 
           echo "Checking release: $tag"
-          echo "Installer URL: $installerUrl"
 
-          # Verify the installer is accessible
-          try {
-            $response = Invoke-WebRequest -Uri $installerUrl -Method Head -UseBasicParsing -ErrorAction Stop
-            echo "Release verified: HTTP $($response.StatusCode)"
-          } catch {
-            Write-Error "Release not found or installer not accessible: $installerUrl"
-            Write-Error "Make sure the release exists and contains the installer."
-            exit 1
+          foreach ($assetUrl in $releaseAssets) {
+            echo "Checking asset URL: $assetUrl"
+            try {
+              $response = Invoke-WebRequest -Uri $assetUrl -Method Head -UseBasicParsing -ErrorAction Stop
+              echo "Release asset verified: HTTP $($response.StatusCode)"
+            } catch {
+              Write-Error "Release asset is not accessible: $assetUrl"
+              Write-Error "Make sure the release exists and contains both installer and portable zip."
+              exit 1
+            }
           }
 
           echo "INSTALLER_URL=$installerUrl" >> $env:GITHUB_OUTPUT
+          echo "PORTABLE_URL=$portableUrl" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Install wingetcreate
         run: |
-          # Install wingetcreate from GitHub releases
-          $latestRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/winget-create/releases/latest"
-          $asset = $latestRelease.assets | Where-Object { $_.name -eq "wingetcreate.exe" }
-
-          if (-not $asset) {
-            Write-Error "Could not find wingetcreate.exe in latest release"
-            exit 1
-          }
-
-          echo "Downloading wingetcreate from: $($asset.browser_download_url)"
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "wingetcreate.exe"
-
-          # Verify download
-          if (Test-Path "wingetcreate.exe") {
-            echo "wingetcreate installed successfully"
-            .\wingetcreate.exe version
-            if ($LASTEXITCODE -ne 0) {
-              Write-Warning "wingetcreate version command returned $LASTEXITCODE; continuing"
-              $global:LASTEXITCODE = 0
-            }
-          } else {
+          Invoke-WebRequest -Uri "https://aka.ms/wingetcreate/latest" -OutFile "wingetcreate.exe"
+          if (-not (Test-Path "wingetcreate.exe")) {
             Write-Error "Failed to download wingetcreate"
             exit 1
           }
+          echo "wingetcreate installed successfully"
         shell: pwsh
 
-      - name: Update manifest and submit PR
+      - name: Validate local WinGet manifests
+        run: |
+          .\tools\validate-winget.ps1 `
+            -Version "${{ steps.version.outputs.VERSION }}" `
+            -RepoSlug "${{ github.repository }}"
+        shell: pwsh
+
+      - name: Submit manifests and open PR
         if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
         env:
           WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
           $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
+          $portableUrl = "${{ steps.release.outputs.PORTABLE_URL }}"
           $packageId = "SevIQ.ThemeToggle"
+          $prTitle = "Update $packageId $version"
 
           if (-not $env:WINGET_GITHUB_TOKEN) {
             Write-Error "WINGET_GITHUB_TOKEN secret is not set!"
@@ -119,28 +135,13 @@ jobs:
           echo "Package: $packageId"
           echo "Version: $version"
           echo "Installer: $installerUrl"
+          echo "Portable: $portableUrl"
+          echo "Manifest source: winget/"
 
-          # Determine if the package already exists in winget-pkgs
-          .\wingetcreate.exe show $packageId | Out-Null
-          $exists = ($LASTEXITCODE -eq 0)
-
-          if ($exists) {
-            echo "Package exists in winget-pkgs, updating..."
-            # Use wingetcreate to update and submit
-            # -s: Submit PR
-            # -t: GitHub token
-            # -u: Installer URL(s)
-            # -v: Version
-            .\wingetcreate.exe update $packageId `
-              --version $version `
-              --urls $installerUrl `
-              --submit `
-              --token $env:WINGET_GITHUB_TOKEN
-          } else {
-            echo "Package not found in winget-pkgs, submitting new manifest..."
-            $prTitle = "Add $packageId $version"
-            .\wingetcreate.exe submit --prtitle $prTitle --token $env:WINGET_GITHUB_TOKEN winget
-          }
+          .\wingetcreate.exe submit `
+            --prtitle $prTitle `
+            --token $env:WINGET_GITHUB_TOKEN `
+            winget
 
           if ($LASTEXITCODE -eq 0) {
             echo ""
@@ -161,29 +162,20 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
           $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
+          $portableUrl = "${{ steps.release.outputs.PORTABLE_URL }}"
 
-          echo "DRY RUN - Validating manifest update..."
+          echo "DRY RUN - Validation only (no PR submission)."
           echo "Package: SevIQ.ThemeToggle"
           echo "Version: $version"
           echo "Installer: $installerUrl"
-
-          # Download and validate without submitting
-          .\wingetcreate.exe update SevIQ.ThemeToggle `
-            --version $version `
-            --urls $installerUrl `
-            --out ./winget-output
-
-          if ($LASTEXITCODE -eq 0) {
+          echo "Portable: $portableUrl"
+          echo ""
+          echo "Validation succeeded in the previous step."
+          echo "Manifests in winget/:"
+          Get-ChildItem -Path winget -Filter "*.yaml" | ForEach-Object {
+            echo "=== $($_.Name) ==="
+            Get-Content $_.FullName
             echo ""
-            echo "Validation successful! Generated manifests:"
-            echo ""
-            Get-ChildItem -Path ./winget-output -Recurse -Filter "*.yaml" | ForEach-Object {
-              echo "=== $($_.Name) ==="
-              Get-Content $_.FullName
-              echo ""
-            }
-          } else {
-            Write-Error "Manifest generation failed"
-            exit 1
           }
+
         shell: pwsh

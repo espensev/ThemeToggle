@@ -1,45 +1,38 @@
-﻿# Signing Tooling
+# Signing Configuration
 
-This folder contains the release signing script.
+Signing is handled by `tools/release/build-and-publish.ps1`. No standalone signing script is needed.
+Use PowerShell 7+ (`pwsh`) to run signing commands.
 
-## Usage
+## Quick usage
 
 ```powershell
-.\sign-release.ps1 -Version 1.5.4
+.\tools\release\build-and-publish.ps1 # full release flow (signs when configured)
+build.bat /sign                       # build + sign exe only
 ```
 
-The script signs:
-- `ThemeToggle.exe`
-- `ThemeToggle-Setup-1.5.4.exe`
+## Credential methods (choose one)
 
-## Configuration (choose one)
+### Certificate store (preferred)
 
-### 1) Windows certificate store (preferred)
-
-Set the cert thumbprint in the current user store:
 ```
 setx THEMETOGGLE_SIGN_CERT_THUMBPRINT "THUMBPRINT"
 ```
 
-Optional:
+Optional overrides:
+
 ```
 setx THEMETOGGLE_SIGN_STORE "My"
 setx THEMETOGGLE_SIGN_STORE_LOCATION "currentuser"
 ```
 
-### 2) PFX file
+### PFX file
 
-Set the PFX path and password (or leave the password unset to prompt):
 ```
 setx THEMETOGGLE_SIGN_PFX_PATH "C:\path\to\cert.pfx"
 setx THEMETOGGLE_SIGN_PFX_PASSWORD "your-password"
 ```
 
-The signing script also accepts common env var names used by some local helpers:
-```
-setx PFX_PATH "C:\path\to\cert.pfx"
-setx PFX_PASS "your-password"
-```
+Fallback env vars (`PFX_PATH` / `PFX_PASS`) are also accepted.
 
 ## Optional settings
 

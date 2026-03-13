@@ -1,112 +1,47 @@
-# Release v1.3.0 - "Distribution Pipeline"
+# Release vX.Y.Z - "<Codename>"
 
-Distribution-focused update with installer, automated release pipeline, and WinGet tooling.
+One-line summary of the release focus.
 
 ---
 
 ## What's New
 
-- NSIS installer with optional shortcuts/startup/scheduled tasks (user-scope install)
-- Unified release pipeline: `dist/build-release.bat`
-- WinGet manifest updater: `dist/update-winget.ps1`
-- Consolidated silent launchers in `dist/launchers`
-- Resource embedding via `ThemeToggle.rc`
+- Key change 1.
+- Key change 2.
+- Key change 3.
 
 ---
 
-## Download
+## Downloads
 
-### Portable Executable (Recommended)
-- `ThemeToggle.exe`
-  - https://github.com/espensev/ThemeToggle/releases/download/v1.3.0/ThemeToggle.exe
-
-### Installer
-- `ThemeToggle-Setup-1.3.0.exe`
-  - https://github.com/espensev/ThemeToggle/releases/download/v1.3.0/ThemeToggle-Setup-1.3.0.exe
-
-### Portable ZIP
-- `ThemeToggle-Portable.zip`
-  - https://github.com/espensev/ThemeToggle/releases/download/v1.3.0/ThemeToggle-Portable.zip
-
-### Source Code
-- https://github.com/espensev/ThemeToggle/archive/refs/tags/v1.3.0.zip
-- https://github.com/espensev/ThemeToggle/archive/refs/tags/v1.3.0.tar.gz
+- `ThemeToggle.exe`: https://github.com/espensev/ThemeToggle/releases/download/vX.Y.Z/ThemeToggle.exe
+- `ThemeToggle-Setup-X.Y.Z.exe`: https://github.com/espensev/ThemeToggle/releases/download/vX.Y.Z/ThemeToggle-Setup-X.Y.Z.exe
+- `ThemeToggle-Portable.zip`: https://github.com/espensev/ThemeToggle/releases/download/vX.Y.Z/ThemeToggle-Portable.zip
 
 ---
 
 ## Quick Start
 
 ```cmd
-ThemeToggle.exe           # Toggle current theme
-ThemeToggle.exe /light    # Force light mode
-ThemeToggle.exe /dark     # Force dark mode
-ThemeToggle.vbs           # Silent toggle (for hotkeys)
+ThemeToggle.exe            # Toggle current theme
+ThemeToggle.exe /light     # Force light
+ThemeToggle.exe /dark      # Force dark
+ThemeToggle.exe /quiet     # Silent (automation)
 ```
 
 ---
 
-## System Requirements
+## Notes
 
-- OS: Windows 10 (1809+) or Windows 11
-- Architecture: x86 (runs on 32-bit and 64-bit Windows)
-- Permissions: User-level (no admin required)
-- Dependencies: None
-
----
-
-## Performance
-
-- 10-15ms execution time (unchanged)
+- Typical execution time: 10-15 ms (test system).
+- WinGet package: `winget install SevIQ.ThemeToggle`
+- Full technical notes: https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
 
 ---
 
-## What's Included
+## Validation Checklist
 
-### Executables
-- `ThemeToggle.exe` - Main executable (~220 KB)
-
-### Launchers (Silent Execution)
-- `ThemeToggle.vbs` - Silent toggle (for hotkeys)
-- `ThemeToggle-Light.vbs` - Force light mode
-- `ThemeToggle-Dark.vbs` - Force dark mode
-- `ThemeToggle.ps1` - PowerShell version
-
-### Setup Tools
-- `setup.bat` - Interactive installer (creates shortcuts, scheduled tasks)
-- `uninstall.bat` - Cleanup script
-- `build.bat` - Build from source (requires Visual Studio)
-
----
-
-## Building from Source
-
-Requires Visual Studio 2019+ (MSVC) and Windows SDK.
-
-```cmd
-git clone https://github.com/espensev/ThemeToggle.git
-cd ThemeToggle
-build.bat
-```
-
-Output: `ThemeToggle.exe` (~220 KB standalone executable)
-
----
-
-## Known Issues
-
-- Browsers (Chrome, Firefox, Edge) often require manual refresh to update theme
-- Legacy apps that hardcode colors will not update
-- Apps with proprietary theme engines may not respond
-
----
-
-## Documentation
-
-- https://github.com/espensev/ThemeToggle/blob/main/README.md
-- https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
-
----
-
-## Support
-
-- https://github.com/espensev/ThemeToggle/issues
+- `build.bat` completes successfully.
+- `ThemeToggle.exe /?` shows updated CLI options.
+- `tools\validate.bat` passes.
+- WinGet manifests in `winget/` match uploaded release artifacts.

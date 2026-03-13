@@ -57,8 +57,8 @@ jobs:
 
       - name: Build release artifacts
         run: |
-          call dist\build-release.bat
-        shell: cmd
+          .\tools\release\build-and-publish.ps1 -NoSign
+        shell: pwsh
 
       - name: Calculate SHA256 hashes
         id: hashes
@@ -84,37 +84,31 @@ jobs:
 
       - name: Validate winget manifests
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $installerHash = "${{ steps.hashes.outputs.INSTALLER_SHA256 }}"
-
-          echo "Validating WinGet manifests..."
-
-          # Check installer manifest has correct SHA256
-          $installerYaml = Get-Content "winget/SevIQ.ThemeToggle.installer.yaml" -Raw
-
-          if ($installerYaml -match "InstallerSha256:\s*$installerHash") {
-            echo "[OK] Installer SHA256 matches"
-          } else {
-            Write-Warning "Installer SHA256 in manifest does not match built artifact"
-            Write-Warning "Expected: $installerHash"
-            Write-Warning "Update manifest with: dist\update-winget.ps1"
-          }
-
-          # Check version
-          if ($installerYaml -match "PackageVersion:\s*$version") {
-            echo "[OK] Version matches: $version"
-          } else {
-            Write-Warning "Version mismatch in installer manifest"
-          }
-
-          # Check for placeholders
-          if ($installerYaml -match "REPLACE_WITH") {
-            Write-Error "Manifest contains placeholder values!"
-            exit 1
-          }
-
-          echo "WinGet manifest validation complete"
+          .\tools\validate-winget.ps1 `
+            -Version "${{ steps.version.outputs.VERSION }}" `
+            -RepoSlug "${{ github.repository }}" `
+            -SkipWingetCli
         shell: pwsh
+
+      - name: Stage generated WinGet manifests
+        run: |
+          if (Test-Path "release-inputs") {
+            Remove-Item "release-inputs" -Recurse -Force
+          }
+
+          New-Item -ItemType Directory -Path "release-inputs\winget" -Force | Out-Null
+          Copy-Item "VERSION" "release-inputs\VERSION" -Force
+          Copy-Item "winget\*.yaml" "release-inputs\winget\" -Force
+        shell: pwsh
+
+      - name: Upload generated WinGet manifests
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests
+          path: |
+            release-inputs/VERSION
+            release-inputs/winget/*.yaml
+          retention-days: 14
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

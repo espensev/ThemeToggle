@@ -1,70 +1,50 @@
 # Development
 
-This page covers local build, tooling, and benchmarking.
-
-## Quickstart
-
-1) Build the executable:
-```cmd
-build.bat
-```
-
-Optional (sign after build):
-```cmd
-build.bat /sign
-```
-
-2) Run a quick help check:
-```cmd
-ThemeToggle.exe /?
-```
-
 ## Requirements
 
 - Windows 10/11
 - Visual Studio Build Tools 2019+ (MSVC), Windows SDK
-- NSIS (only required for the installer / `dist\build-release.bat`)
+- NSIS (only for installer builds)
+- PowerShell 7+ (`pwsh`) for `build.bat /sign` and `tools/release/build-and-publish.ps1`
 
-Optional:
-- GitHub CLI (`gh`) if you trigger workflows locally
+## Quick build
 
-## Build (Local)
-
-Build the standalone executable:
 ```cmd
 build.bat
 ```
 
-Output: `ThemeToggle.exe` in the repo root.
+Produces `ThemeToggle.exe` in the repo root.
 
-## Build (Release Artifacts)
+Optional signing after build (delegates to `tools/release/build-and-publish.ps1`):
 
-Build exe + installer + portable ZIP (auto-signs if configured):
 ```cmd
-dist\build-release.bat
+build.bat /sign
 ```
 
-Outputs:
-- `ThemeToggle.exe`
-- `ThemeToggle-Setup-<version>.exe` (if NSIS is available)
-- `ThemeToggle-Portable.zip`
+## Full release build
+
+`tools/release/build-and-publish.ps1` handles the complete pipeline - exe, installer, portable ZIP, signing, and WinGet manifest updates.
+
+```powershell
+.\tools\release\build-and-publish.ps1                    # build + package
+.\tools\release\build-and-publish.ps1 -Version 1.6.0    # bump version first
+.\tools\release\build-and-publish.ps1 -NoSign -NoWinget  # skip signing and WinGet
+.\tools\release\build-and-publish.ps1 -DryRun            # preview only
+```
+
+See [RELEASE.md](RELEASE.md) for the full release workflow.
 
 ## Tooling
 
-Clean build artifacts:
-```cmd
-tools\cleanup.bat
-```
-
-Pre-commit validation:
-```cmd
-tools\validate.bat
-```
-
-Update WinGet manifests (SHA256/GUID):
-```powershell
-dist\update-winget.ps1
-```
+| Script | Purpose |
+|--------|---------|
+| `build.bat` | Compile the executable (MSVC detection built in) |
+| `tools\release\build-and-publish.ps1` | Full release pipeline |
+| `tools\bump-version.ps1` | Update version across all project files |
+| `tools\validate.bat` | Pre-commit validation checks |
+| `tools\validate-winget.ps1` | Strict WinGet manifest/version/URL validation |
+| `tools\bench.ps1` | Performance benchmarking |
+| `tools\export-bench.ps1` | Export benchmark results |
 
 ## Benchmarking
 
@@ -72,25 +52,16 @@ dist\update-winget.ps1
 .\tools\bench.ps1 -Iterations 1000
 ```
 
-Optional knobs:
-- `-SettleMs` wait between toggles (default 250ms)
-- `-BatchSize` / `-BatchPauseMs` reduce system stress
-- `-JitterMs` add variance
+Options: `-SettleMs` (delay between toggles), `-BatchSize` / `-BatchPauseMs` (reduce system stress), `-JitterMs` (add variance).
 
 Export for another machine:
+
 ```powershell
 .\tools\export-bench.ps1 -Zip
 ```
 
 ## Troubleshooting
 
-### Visual Studio Build Tools not found
-`build.bat` looks for `vswhere.exe` and common VS install paths. Fix by:
-- Installing Visual Studio Build Tools 2019+, or
-- Running from a Developer Command Prompt, or
-- Installing VS where it can be discovered.
+**Visual Studio Build Tools not found** — `build.bat` uses `vswhere.exe` and common VS install paths. Install Visual Studio Build Tools 2019+ or run from a Developer Command Prompt.
 
-### NSIS not found
-`dist\build-release.bat` skips the installer if `makensis` is not on PATH. Fix by:
-- Installing NSIS, or
-- Adding `C:\Program Files (x86)\NSIS` to PATH.
+**NSIS not found** - `tools/release/build-and-publish.ps1` skips the installer when `makensis` is not on PATH. Install NSIS or add `C:\Program Files (x86)\NSIS` to PATH.

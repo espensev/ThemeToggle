@@ -3,7 +3,7 @@ setlocal EnableDelayedExpansion
 REM Build script for ThemeToggle.exe
 
 REM Optional flags:
-REM   /sign   Sign ThemeToggle.exe after build (requires signing env vars; see tools\signing\README.md)
+REM   /sign   Build + sign via tools\release\build-and-publish.ps1
 REM   --help  Show help
 
 set DO_SIGN=0
@@ -20,6 +20,31 @@ if /I "!ARG2!"=="/?" goto USAGE
 
 REM Save current directory and switch to script directory
 pushd "%~dp0"
+
+REM Backward-compatible signing path:
+REM delegate to the unified release script so /sign keeps working after
+REM standalone signing helpers were consolidated.
+if %DO_SIGN%==1 (
+    if not exist "tools\release\build-and-publish.ps1" (
+        echo ERROR: tools\release\build-and-publish.ps1 not found.
+        popd
+        exit /b 1
+    )
+
+    where pwsh >nul 2>&1
+    if !ERRORLEVEL! NEQ 0 (
+        echo ERROR: pwsh ^(PowerShell 7+^) is required for build.bat /sign.
+        echo        Install PowerShell 7+ or run tools\release\build-and-publish.ps1 directly with pwsh.
+        popd
+        exit /b 1
+    )
+
+    echo Delegating build + signing to tools\release\build-and-publish.ps1...
+    pwsh -NoProfile -ExecutionPolicy Bypass -File "tools\release\build-and-publish.ps1" -NoInstaller -NoZip -NoWinget
+    set RESULT=%ERRORLEVEL%
+    popd
+    exit /b %RESULT%
+)
 
 REM Detect and setup Visual Studio Build Tools environment
 if not defined VSCMD_VER (
@@ -103,12 +128,6 @@ if %ERRORLEVEL% NEQ 0 (
 REM Step 4: Cleanup
 del *.obj 2>nul
 del ThemeToggle.res 2>nul
-
-REM Optional: Sign
-if %DO_SIGN%==1 (
-    echo Signing ThemeToggle.exe...
-    powershell -NoProfile -ExecutionPolicy Bypass -File "tools\signing\sign-release.ps1" -Target exe
-)
 
 echo Build completed successfully!
 popd

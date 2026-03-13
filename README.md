@@ -11,6 +11,8 @@ ThemeToggle.exe /dark     # Force dark mode
 ThemeToggle.exe /quiet    # Silent (for automation)
 ```
 
+GUI launches are silent by default. The theme change itself is the only feedback.
+
 ## Installation
 
 ### Option 1: WinGet (Recommended)

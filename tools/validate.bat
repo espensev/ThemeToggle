@@ -37,18 +37,13 @@ for %%F in (*.obj *.res RC* RD* *.aps) do (
 if %artifacts%==0 echo [OK] No build artifacts
 
 REM Check manifests
-echo [3/5] Checking WinGet manifests...
-if exist "winget\SevIQ.ThemeToggle.installer.yaml" (
-    findstr /C:"REPLACE_WITH_ACTUAL_SHA256_HASH" "winget\SevIQ.ThemeToggle.installer.yaml" >nul
-    if !ERRORLEVEL! EQU 0 (
-        echo [WARNING] Installer manifest has placeholder SHA256
-        set /a warnings+=1
-    ) else (
-        echo [OK] Installer manifest
-    )
-) else (
-    echo [ERROR] Missing WinGet installer manifest
+echo [3/5] Validating WinGet manifests...
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\validate-winget.ps1"
+if !ERRORLEVEL! NEQ 0 (
+    echo [ERROR] WinGet manifest validation failed
     set /a errors+=1
+) else (
+    echo [OK] WinGet manifests validated
 )
 
 REM Check NSIS script

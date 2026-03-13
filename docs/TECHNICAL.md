@@ -2,83 +2,73 @@
 
 ## Performance
 
-- Typical execution: 10-15ms on a test system
-- Broadcasts are async to avoid blocking
-- Optional stubborn-app kick can be disabled via `/kick=none`
+Typical execution: 10-15 ms (test system). Broadcasts are asynchronous; the optional stubborn-app kick can be disabled via `/kick=none`.
 
-## Runtime & Compatibility
+## Compatibility
 
 - Static build (`/MT`), no DLL dependencies
-- Windows 10 (1809+) / Windows 11
-- Server 2019+
+- Windows 10 (1809+), Windows 11, Server 2019+
 
-## Behavior Flow (High-Level)
+## Execution flow
 
-1) Acquire single-instance mutex  
-2) Read current theme from registry  
-3) Write new theme values  
-4) Flush registry (unless `/noflush`)  
-5) Broadcast theme change (async)  
-6) Optional stubborn-app kick (`/kick=...`)  
+1. Acquire single-instance mutex
+2. Read current theme from registry
+3. Write new theme values
+4. Flush registry (unless `/noflush`)
+5. Broadcast theme change (async)
+6. Optional stubborn-app kick (`/kick=...`)
 
-## CLI Behavior (Summary)
+## CLI reference
 
-Common options:
-- `/toggle` (default), `/light`, `/dark`
-- `/quiet` suppress console output
-- `/exitcode` return status as exit code
-- `/kick=all|core|none` (or `/nokick`)
-- `/noflush` skip registry flush
-- `/?` or `/help` show usage
+| Option | Description |
+|--------|-------------|
+| `/toggle` | Toggle theme (default) |
+| `/light`, `/dark` | Force a specific theme |
+| `/quiet` | Suppress console output |
+| `/exitcode` | Return status as exit code |
+| `/kick=all\|core\|none` | Control stubborn-app notifications |
+| `/noflush` | Skip registry flush |
+| `/?`, `/help` | Show usage |
 
-All options also accept `-` or `--` prefixes.
+All options accept `-` or `--` prefixes.
+GUI launches stay silent by default. `/notify` is still accepted for backward compatibility, but it no longer shows dialogs.
 
-Exit codes:
-- `0` no change needed
-- `1` changed to Light
-- `2` changed to Dark
-- `11` registry write failed
-- `12` registry read failed
-- `20` broadcast failed (registry updated)
-- `30` already running
-- `99` unknown error
+### Exit codes
 
-## Registry Keys Modified
+| Code | Meaning |
+|------|---------|
+| 0 | No change needed |
+| 1 | Changed to Light |
+| 2 | Changed to Dark |
+| 11 | Registry write failed |
+| 12 | Registry read failed |
+| 20 | Broadcast failed (registry updated) |
+| 30 | Already running |
+| 99 | Unknown error |
 
-```
-HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
-  SystemUsesLightTheme (DWORD) - 0=Dark, 1=Light
-  AppsUseLightTheme    (DWORD) - 0=Dark, 1=Light
-```
-
-## Architecture
-
-Key components:
-- `src/main.cpp` - entry point and CLI
-- `src/RegistryManager.cpp` - registry operations
-- `src/BroadcastManager.cpp` - theme notifications
-- `src/UxThemeHelper.cpp` - Windows 11 refresh helpers
-
-## Windows 11 Specifics
-
-Windows 11 refresh calls (uxtheme APIs) are used when available; on older builds they are no-ops. This helps context menus and modern UI refresh faster after a theme change.
-
-## Stubborn App Handling
-
-Some apps cache theme state. The optional kick step explicitly notifies common offenders (Explorer, dialogs, Office/WPF apps, Terminal, Chrome/Firefox). Use `/kick=none` if you want the fastest path.
-
-## Project Structure
+## Registry keys
 
 ```
-ThemeToggle/
-  src/                          Source files
-  include/                      Headers
-  Resources/                    Icon + manifest
-  .github/workflows/            CI + release pipelines
-  dist/                         Release scripts + launchers
-  tools/                        Tooling + signing
-  winget/                       WinGet manifests
-  ThemeToggle.rc                Resource script
-  setup.nsi                     NSIS installer
-  build.bat                     Build script
+HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
+  SystemUsesLightTheme  (DWORD)  0 = Dark, 1 = Light
+  AppsUseLightTheme     (DWORD)  0 = Dark, 1 = Light
 ```
+
+## Source layout
+
+| Path | Contents |
+|------|----------|
+| `src/main.cpp` | Entry point and CLI |
+| `src/RegistryManager.cpp` | Registry operations with rollback |
+| `src/BroadcastManager.cpp` | Async theme notifications |
+| `src/UxThemeHelper.cpp` | Windows 11 uxtheme refresh helpers |
+| `include/` | Headers |
+| `Resources/` | Icon and manifest |
+
+## Windows 11 specifics
+
+uxtheme ordinal-based APIs (`SetPreferredAppMode`, `FlushMenuThemes`, `RefreshImmersiveColorPolicyState`) are called when available. On older builds they are no-ops.
+
+## Stubborn-app handling
+
+Some applications cache theme state. The kick step explicitly notifies common offenders (Explorer, dialogs, Office/WPF apps, Terminal, Chrome, Firefox). Disable with `/kick=none` for the fastest path.

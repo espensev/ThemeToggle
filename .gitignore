@@ -61,6 +61,10 @@ x86/
 [Ll]og/
 [Ll]ogs/
 
+# Keep source-controlled release scripts under tools/
+!tools/release/
+!tools/release/*.ps1
+
 # ===================
 # Release Artifacts
 # ===================

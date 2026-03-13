@@ -51,48 +51,7 @@ void EnsureConsoleStreams() {
     }
 }
 
-void ShowGuiMessage(const std::string& text, UINT icon) {
-    if (g_hasConsole) {
-        return;
-    }
-    auto wide = StringUtils::Utf8ToWide(text);
-    MessageBoxW(nullptr, wide.c_str(), L"ThemeToggle", MB_OK | icon);
-}
-
-void ShowGuiSummary(const ThemeInfo& info, bool quiet, bool passThru, bool asExitCode) {
-    if (quiet || passThru || asExitCode) {
-        return;
-    }
-
-    if (g_hasConsole) {
-        return;
-    }
-
-    std::ostringstream msg;
-    UINT icon = MB_ICONINFORMATION;
-
-    if (info.exitCode == ExitCode::AlreadyRunning) {
-        msg << "Another instance is already running.";
-        icon = MB_ICONWARNING;
-    }
-    else if (info.changed) {
-        msg << "Changed to " << info.theme << " theme.";
-        if (!info.broadcastOk) {
-            msg << " (broadcast issue detected)";
-            icon = MB_ICONWARNING;
-        }
-    }
-    else {
-        msg << "Already " << info.theme << " theme.";
-    }
-
-    if (info.stubbornAppsKicked > 0) {
-        msg << "\nKicked " << info.stubbornAppsKicked << " stubborn app"
-            << (info.stubbornAppsKicked == 1 ? "" : "s") << ".";
-    }
-
-    ShowGuiMessage(msg.str(), icon);
-}
+// No GUI feedback — the theme change is its own feedback.
 }
 
 class WindowsThemeToggler {
@@ -409,9 +368,6 @@ void PrintUsage() {
         "  99 = Unknown error\n";
 
     std::cout << usage;
-    if (!g_hasConsole) {
-        ShowGuiMessage(usage, MB_ICONINFORMATION);
-    }
 }
 
 int RunThemeToggleCli(int argc, char* argv[]) {
@@ -444,6 +400,9 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         }
         else if (arg == "/quiet" || arg == "-quiet" || arg == "--quiet") {
             quiet = true;
+        }
+        else if (arg == "/notify" || arg == "-notify" || arg == "--notify") {
+            // Accepted and ignored — no GUI dialogs are shown regardless.
         }
         else if (arg == "/passthru" || arg == "-passthru" || arg == "--passthru") {
             passThru = true;
@@ -499,7 +458,6 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         WindowsThemeToggler toggler(quiet, passThru, kickPolicy, noFlush);
         ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark);
         toggler.PrintThemeInfo(info);
-        ShowGuiSummary(info, quiet, passThru, asExitCode);
 
         if (asExitCode) {
             return static_cast<int>(info.exitCode);
@@ -507,10 +465,6 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     }
     catch (const ThemeToggleError& tex) {
         std::cerr << "Error: " << tex.what() << std::endl;
-        if (!g_hasConsole && !quiet && !asExitCode) {
-            ShowGuiMessage(tex.what(), MB_ICONERROR);
-        }
-
         if (asExitCode) {
             return static_cast<int>(tex.code());
         }
@@ -518,10 +472,6 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     }
     catch (const std::exception& ex) {
         std::cerr << "Error: " << ex.what() << std::endl;
-        if (!g_hasConsole && !quiet && !asExitCode) {
-            ShowGuiMessage(ex.what(), MB_ICONERROR);
-        }
-
         if (asExitCode) {
             return static_cast<int>(ExitCode::UnknownError);
         }
@@ -531,6 +481,29 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     return 0;
 }
 
+// Returns true when the argument list contains flags that imply the caller
+// wants console output (/passthru, /help, /?). Plain operational flags like
+// /light, /dark, /quiet, /exitcode are intentionally excluded so that
+// shortcuts and double-clicks stay completely silent.
+static bool HasConsoleIntent(int argc, LPWSTR* argvW) {
+    for (int i = 1; i < argc; ++i) {
+        if (!argvW[i]) continue;
+        std::wstring arg = argvW[i];
+        for (auto& c : arg) c = static_cast<wchar_t>(towlower(c));
+        // Strip leading - or /
+        size_t start = arg.find_first_not_of(L"-/");
+        if (start == std::wstring::npos) continue;
+        std::wstring stripped = arg.substr(start);
+        if (stripped == L"passthru" ||
+            stripped == L"help"     ||
+            stripped == L"h"        ||
+            stripped == L"?") {
+            return true;
+        }
+    }
+    return false;
+}
+
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     int argc = 0;
     LPWSTR* argvW = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -538,9 +511,15 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
-    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
-        g_hasConsole = true;
-        EnsureConsoleStreams();
+    // Only attach to a parent console when the user explicitly wants console
+    // output (/passthru, /help). Operational flags (/light, /dark, /toggle,
+    // /quiet, /exitcode) are designed to work silently — a double-click or
+    // hotkey shortcut should produce no window, no flash, nothing visible.
+    if (HasConsoleIntent(argc, argvW)) {
+        if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+            g_hasConsole = true;
+            EnsureConsoleStreams();
+        }
     }
 
     std::vector<std::string> narrow(argc);

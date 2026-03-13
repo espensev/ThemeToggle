@@ -85,16 +85,15 @@ if (Test-Path $installerYaml) {
     $content = Get-Content $installerYaml -Raw
     $content = $content -replace '(?m)^PackageVersion:\s*[\d.]+', "PackageVersion: $Version"
     $content = $content -replace 'releases/download/v[\d.]+/ThemeToggle-Setup-[\d.]+\.exe', "releases/download/v$Version/ThemeToggle-Setup-$Version.exe"
-    $content = $content -replace 'InstallerSha256:\s*[A-F0-9]{64}', 'InstallerSha256: REPLACE_WITH_ACTUAL_SHA256_HASH'
+    $content = $content -replace 'InstallerSha256:\s*[A-Fa-f0-9]{64}', 'InstallerSha256: REPLACE_WITH_ACTUAL_SHA256_HASH'
     $content | Set-Content $installerYaml -NoNewline -Encoding UTF8
     Write-Host "  Updated: winget/SevIQ.ThemeToggle.installer.yaml"
 }
 
-# signing docs
+# signing docs (keep version examples aligned if present)
 $signReadme = Join-Path $repoRoot "tools/signing/README.md"
 if (Test-Path $signReadme) {
     $content = Get-Content $signReadme -Raw
-    $content = $content -replace 'sign-release\.ps1 -Version \d+\.\d+\.\d+', "sign-release.ps1 -Version $Version"
     $content = $content -replace 'ThemeToggle-Setup-\d+\.\d+\.\d+\.exe', "ThemeToggle-Setup-$Version.exe"
     $content | Set-Content $signReadme -NoNewline -Encoding UTF8
     Write-Host "  Updated: tools/signing/README.md"
