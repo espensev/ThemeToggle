@@ -21,35 +21,22 @@ jobs:
 
     steps:
       - name: Check WinGet PR status
-        env:
-          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
         run: |
           AUTHOR="espensev"
+          API="https://api.github.com"
 
           echo "Checking for open WinGet PRs by $AUTHOR..."
 
-          # Use curl with the classic PAT for cross-repo API access
-          AUTH_HEADER="Authorization: token ${WINGET_GITHUB_TOKEN}"
-          API="https://api.github.com"
-
+          # All repos are public — no auth needed for reads
           # List branches on the user's winget-pkgs fork
-          echo "Fetching fork branches..."
-          BRANCH_RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
-            -H "$AUTH_HEADER" -H "Accept: application/vnd.github+json" \
-            "${API}/repos/${AUTHOR}/winget-pkgs/branches?per_page=100") || true
-
-          HTTP_STATUS=$(echo "$BRANCH_RESPONSE" | tail -1 | sed 's/HTTP_STATUS://')
-          BRANCH_BODY=$(echo "$BRANCH_RESPONSE" | sed '$d')
-          echo "Fork branches API status: $HTTP_STATUS"
-
-          FORK_BRANCHES=$(echo "$BRANCH_BODY" \
-            | jq -r '[.[] | .name | select(startswith("SevIQ.ThemeToggle"))] | .[]' 2>/dev/null) || true
-          echo "Found branches: $(echo "$FORK_BRANCHES" | wc -l | tr -d ' ')"
+          FORK_BRANCHES=$(curl -sf -H "Accept: application/vnd.github+json" \
+            "${API}/repos/${AUTHOR}/winget-pkgs/branches?per_page=100" \
+            | jq -r '[.[] | .name | select(startswith("SevIQ.ThemeToggle"))] | .[]') || true
 
           # For each branch, check if there's an open PR
           OPEN_PRS="[]"
           for BRANCH in $FORK_BRANCHES; do
-            PR_DATA=$(curl -sf -H "$AUTH_HEADER" -H "Accept: application/vnd.github+json" \
+            PR_DATA=$(curl -sf -H "Accept: application/vnd.github+json" \
               "${API}/repos/microsoft/winget-pkgs/pulls?state=open&head=${AUTHOR}:${BRANCH}" \
               | jq '[.[] | {number, title, url: .html_url, createdAt: .created_at}]') || continue
 
