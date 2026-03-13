@@ -1,0 +1,158 @@
+# WinGet PR Status Tracker
+# Checks open PRs on microsoft/winget-pkgs daily and posts updates
+
+name: WinGet PR Status
+
+on:
+  schedule:
+    # Run daily at 09:00 UTC
+    - cron: '0 9 * * *'
+
+  # Allow manual check
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check WinGet PR status
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: |
+          PACKAGE_ID="SevIQ.ThemeToggle"
+          AUTHOR="espensev"
+
+          echo "Checking for open WinGet PRs by $AUTHOR..."
+
+          # Search for open PRs
+          OPEN_PRS=$(gh search prs \
+            --repo microsoft/winget-pkgs \
+            --author "$AUTHOR" \
+            --state open \
+            --json number,title,url,createdAt \
+            --limit 10 2>&1) || true
+
+          OPEN_COUNT=$(echo "$OPEN_PRS" | jq 'length // 0')
+
+          if [ "$OPEN_COUNT" -eq 0 ]; then
+            echo "No open WinGet PRs found."
+            echo "STATUS=none" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          echo "Found $OPEN_COUNT open PR(s):"
+          echo "$OPEN_PRS" | jq -r '.[] | "  #\(.number): \(.title) (\(.createdAt))"'
+
+          # Check each PR for reviews and check status
+          SUMMARY=""
+          NEEDS_ACTION=false
+
+          for PR_NUM in $(echo "$OPEN_PRS" | jq -r '.[].number'); do
+            PR_TITLE=$(echo "$OPEN_PRS" | jq -r ".[] | select(.number == $PR_NUM) | .title")
+            PR_URL=$(echo "$OPEN_PRS" | jq -r ".[] | select(.number == $PR_NUM) | .url")
+            PR_CREATED=$(echo "$OPEN_PRS" | jq -r ".[] | select(.number == $PR_NUM) | .createdAt")
+
+            # Get review status
+            REVIEWS=$(gh api "repos/microsoft/winget-pkgs/pulls/$PR_NUM/reviews" \
+              --jq '[.[] | select(.state != "COMMENTED")] | length' 2>/dev/null) || REVIEWS=0
+
+            # Get check status
+            CHECKS=$(gh api "repos/microsoft/winget-pkgs/pulls/$PR_NUM" \
+              --jq '.mergeable_state' 2>/dev/null) || CHECKS="unknown"
+
+            # Calculate age in days
+            CREATED_TS=$(date -d "$PR_CREATED" +%s 2>/dev/null) || CREATED_TS=0
+            NOW_TS=$(date +%s)
+            AGE_DAYS=$(( (NOW_TS - CREATED_TS) / 86400 ))
+
+            STATUS_ICON="🟡"
+            if [ "$AGE_DAYS" -gt 7 ]; then
+              STATUS_ICON="🔴"
+              NEEDS_ACTION=true
+            elif [ "$AGE_DAYS" -gt 3 ]; then
+              STATUS_ICON="🟠"
+            fi
+
+            SUMMARY="${SUMMARY}${STATUS_ICON} [#${PR_NUM}](${PR_URL}): **${PR_TITLE}** (${AGE_DAYS}d old, mergeable: ${CHECKS})\n"
+          done
+
+          echo "STATUS=open" >> $GITHUB_ENV
+          echo "PR_COUNT=$OPEN_COUNT" >> $GITHUB_ENV
+
+          # Write summary to file for the next step
+          printf "$SUMMARY" > /tmp/pr_summary.txt
+
+          if [ "$NEEDS_ACTION" = true ]; then
+            echo "NEEDS_ACTION=true" >> $GITHUB_ENV
+          fi
+
+      - name: Create or update tracking issue
+        if: env.STATUS == 'open'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SUMMARY=$(cat /tmp/pr_summary.txt)
+          TODAY=$(date -u +%Y-%m-%d)
+          ISSUE_TITLE="WinGet PR Status Tracker"
+
+          # Find existing tracking issue
+          EXISTING=$(gh issue list \
+            --repo ${{ github.repository }} \
+            --label "winget-status" \
+            --state open \
+            --json number \
+            --limit 1 \
+            --jq '.[0].number // empty' 2>/dev/null) || true
+
+          BODY="## WinGet PR Status — ${TODAY}
+
+          ${PR_COUNT} open PR(s) on [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs):
+
+          ${SUMMARY}
+
+          ---
+          *Auto-updated by [WinGet PR Status](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) workflow.*"
+
+          # Dedent the body
+          BODY=$(echo "$BODY" | sed 's/^          //')
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" \
+              --repo ${{ github.repository }} \
+              --body "$BODY"
+            echo "Updated issue #$EXISTING"
+          else
+            gh issue create \
+              --repo ${{ github.repository }} \
+              --title "$ISSUE_TITLE" \
+              --label "winget-status" \
+              --body "$BODY"
+            echo "Created new tracking issue"
+          fi
+
+      - name: Close tracking issue if no open PRs
+        if: env.STATUS == 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          EXISTING=$(gh issue list \
+            --repo ${{ github.repository }} \
+            --label "winget-status" \
+            --state open \
+            --json number \
+            --limit 1 \
+            --jq '.[0].number // empty' 2>/dev/null) || true
+
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" \
+              --repo ${{ github.repository }} \
+              --comment "All WinGet PRs have been merged or closed. Closing tracker."
+            echo "Closed issue #$EXISTING"
+          else
+            echo "No tracking issue to close."
+          fi
