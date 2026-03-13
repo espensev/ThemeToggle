@@ -134,11 +134,18 @@ if ($installerBlocks.Count -lt 2) {
     Fail "Expected installer and portable installer entries. Found: $($installerBlocks.Count)"
 }
 
+foreach ($installerBlock in $installerBlocks) {
+    if ($installerBlock -notmatch '(?m)^\s*InstallerUrl:\s*\S+\s*$' -or
+        $installerBlock -notmatch '(?m)^\s*InstallerSha256:\s*\S+\s*$') {
+        Fail "Installer entry parsing failed; each installer block must include InstallerUrl and InstallerSha256."
+    }
+}
+
 $primaryInstallerBlock = $installerBlocks | Where-Object {
     $_ -match '(?m)^\s*ProductCode:\s*'
 } | Select-Object -First 1
 if (-not $primaryInstallerBlock) {
-    Fail "Could not locate the primary installer block."
+    Fail "Could not locate the primary installer block (expected an installer entry with ProductCode)."
 }
 
 if ($primaryInstallerBlock -notmatch '(?m)^\s*Scope:\s*user\s*$') {
@@ -147,7 +154,7 @@ if ($primaryInstallerBlock -notmatch '(?m)^\s*Scope:\s*user\s*$') {
 
 $portableBlock = $installerBlocks | Where-Object { $_ -match '(?m)^\s*InstallerType:\s*zip\s*$' } | Select-Object -First 1
 if (-not $portableBlock) {
-    Fail "Could not locate the portable ZIP installer block."
+    Fail "Could not locate the portable ZIP installer block (expected an installer entry with InstallerType: zip)."
 }
 
 if ($portableBlock -match '(?m)^\s*Scope:\s*') {
