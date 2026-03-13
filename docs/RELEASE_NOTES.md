@@ -6,8 +6,15 @@ Newest entry at the top.
 
 ## Unreleased
 
+---
+
+## 1.5.5 — Silent Launch & Release Pipeline (2026-03-13)
+
 - Removed GUI dialogs from normal execution. Theme changes now stay silent even when launched without a console.
 - `/notify` is retained as a backward-compatible no-op so older shortcuts do not break.
+- Installer shortcuts, startup integration, and setup flows now launch `ThemeToggle.exe` directly instead of VBS wrappers.
+- The release workflow now hands the exact CI-generated WinGet manifests to the publish workflow, avoiding installer hash drift between release and WinGet submission.
+- Release tooling is consolidated under `tools/release/build-and-publish.ps1` and `tools/validate-winget.ps1`.
 
 ---
 

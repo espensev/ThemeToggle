@@ -1,4 +1,4 @@
-﻿; ============================================================================
+; ============================================================================
 ; ThemeToggle NSIS Installer Script
 ; ============================================================================
 ; Creates a professional Windows installer with:
@@ -11,7 +11,7 @@
 ; ============================================================================
 
 !define PRODUCT_NAME "ThemeToggle"
-!define PRODUCT_VERSION "1.5.4"
+!define PRODUCT_VERSION "1.5.5"
 !define PRODUCT_PUBLISHER "SevIQ"
 !define PRODUCT_WEB_SITE "https://github.com/espensev/ThemeToggle"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"

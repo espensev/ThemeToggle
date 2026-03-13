@@ -2,7 +2,7 @@
 # ThemeToggle Version Bump
 # ============================================================================
 # Updates VERSION and aligns all version references across the project.
-# Usage: .\tools\bump-version.ps1 -Version 1.5.2
+# Usage: .\tools\bump-version.ps1 -Version 1.5.5
 # ============================================================================
 
 param(
@@ -74,6 +74,9 @@ foreach ($file in $wingetFiles) {
     if (Test-Path $fullPath) {
         $content = Get-Content $fullPath -Raw
         $content = $content -replace '(?m)^PackageVersion:\s*[\d.]+', "PackageVersion: $Version"
+        if ($file -like "*.locale.en-US.yaml") {
+            $content = $content -replace 'ReleaseNotesUrl:\s*\S+', "ReleaseNotesUrl: https://github.com/espensev/ThemeToggle/releases/tag/v$Version"
+        }
         $content | Set-Content $fullPath -NoNewline -Encoding UTF8
         Write-Host "  Updated: $file"
     }
@@ -83,9 +86,11 @@ foreach ($file in $wingetFiles) {
 $installerYaml = Join-Path $repoRoot "winget/SevIQ.ThemeToggle.installer.yaml"
 if (Test-Path $installerYaml) {
     $content = Get-Content $installerYaml -Raw
+    $releaseDate = Get-Date -Format 'yyyy-MM-dd'
     $content = $content -replace '(?m)^PackageVersion:\s*[\d.]+', "PackageVersion: $Version"
     $content = $content -replace 'releases/download/v[\d.]+/ThemeToggle-Setup-[\d.]+\.exe', "releases/download/v$Version/ThemeToggle-Setup-$Version.exe"
-    $content = $content -replace 'InstallerSha256:\s*[A-Fa-f0-9]{64}', 'InstallerSha256: REPLACE_WITH_ACTUAL_SHA256_HASH'
+    $content = $content -replace 'releases/download/v[\d.]+/ThemeToggle-Portable\.zip', "releases/download/v$Version/ThemeToggle-Portable.zip"
+    $content = $content -replace '(?m)^(\s*ReleaseDate:\s*).+$', ('${1}' + $releaseDate)
     $content | Set-Content $installerYaml -NoNewline -Encoding UTF8
     Write-Host "  Updated: winget/SevIQ.ThemeToggle.installer.yaml"
 }
@@ -100,4 +105,4 @@ if (Test-Path $signReadme) {
 }
 
 Write-Host ""
-Write-Host "Version updated to $Version. Rebuild to apply."
+Write-Host "Version updated to $Version. Rebuild and regenerate artifacts to refresh WinGet hashes."
