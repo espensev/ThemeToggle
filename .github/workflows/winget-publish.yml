@@ -4,7 +4,12 @@
 name: Publish to WinGet
 
 on:
-  # Trigger after release workflow completes
+  # Trigger when a GitHub Release is published
+  release:
+    types:
+      - published
+
+  # Trigger after release workflow completes (fallback for workflow_run)
   workflow_run:
     workflows: ["Release"]
     types:
@@ -29,8 +34,8 @@ permissions:
 
 jobs:
   publish:
-    # Only run if release workflow succeeded (or manual trigger)
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # Only run if release workflow succeeded (or manual/release event trigger)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'release' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: windows-latest
 
     steps:
@@ -59,8 +64,11 @@ jobs:
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             # Manual trigger - use input version
             $version = "${{ inputs.version }}"
+          } elseif ("${{ github.event_name }}" -eq "release") {
+            # Release event - extract version from release tag (strip leading 'v')
+            $version = "${{ github.event.release.tag_name }}" -replace '^v', ''
           } else {
-            # Automatic trigger - get version from VERSION file
+            # workflow_run trigger - get version from VERSION file (restored from artifacts)
             $version = (Get-Content "VERSION" -Raw).Trim()
           }
 
