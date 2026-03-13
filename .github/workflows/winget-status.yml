@@ -22,15 +22,25 @@ jobs:
     steps:
       - name: Check WinGet PR status
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
         run: |
           AUTHOR="espensev"
 
           echo "Checking for open WinGet PRs by $AUTHOR..."
 
-          # Search for open PRs using the GitHub API directly
-          OPEN_PRS=$(gh api "search/issues?q=repo:microsoft/winget-pkgs+author:${AUTHOR}+type:pr+state:open&per_page=10" \
-            --jq '[.items[] | {number, title, url: .pull_request.html_url, createdAt: .created_at}]' 2>&1) || OPEN_PRS="[]"
+          # Search for open PRs — use classic PAT for cross-repo search access
+          OPEN_PRS=$(gh search prs \
+            --repo microsoft/winget-pkgs \
+            --author "$AUTHOR" \
+            --state open \
+            --json number,title,url,createdAt \
+            --limit 10 2>/dev/null) || OPEN_PRS="[]"
+
+          # Validate we got valid JSON
+          if ! echo "$OPEN_PRS" | jq empty 2>/dev/null; then
+            echo "Search returned invalid response, falling back to empty"
+            OPEN_PRS="[]"
+          fi
 
           OPEN_COUNT=$(echo "$OPEN_PRS" | jq 'length')
 
