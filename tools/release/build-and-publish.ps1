@@ -256,11 +256,11 @@ function Update-WingetManifests {
     $content = $content -replace "ProductCode:\s*'\{REPLACE_WITH_PRODUCT_GUID\}'", "ProductCode: '$productGuid'"
 
     # Update version
-    $content = $content -replace '(?m)^(\s*PackageVersion:\s*).+$', "`$1$Ver"
+    $content = $content -replace '(?m)^(\s*PackageVersion:\s*).+$', ('${1}' + $Ver)
 
     # Update release date
     $today = Get-Date -Format 'yyyy-MM-dd'
-    $content = $content -replace '(?m)^(\s*ReleaseDate:\s*).+$', "`$1$today"
+    $content = $content -replace '(?m)^(\s*ReleaseDate:\s*).+$', ('${1}' + $today)
 
     $content | Set-Content $manifestPath -NoNewline -Encoding UTF8
     Write-Success "Updated: SevIQ.ThemeToggle.installer.yaml"
