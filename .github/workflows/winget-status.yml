@@ -22,22 +22,27 @@ jobs:
     steps:
       - name: Check WinGet PR status
         env:
-          GH_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
         run: |
           AUTHOR="espensev"
 
           echo "Checking for open WinGet PRs by $AUTHOR..."
 
-          # List branches on the user's winget-pkgs fork to find PR branches
-          # Each wingetcreate submission creates a branch like "SevIQ.ThemeToggle-X.Y.Z-<uuid>"
-          FORK_BRANCHES=$(gh api "repos/${AUTHOR}/winget-pkgs/branches?per_page=100" \
-            --jq '[.[] | .name | select(startswith("SevIQ.ThemeToggle"))]' 2>/dev/null) || FORK_BRANCHES="[]"
+          # Use curl with the classic PAT for cross-repo API access
+          AUTH_HEADER="Authorization: Bearer ${WINGET_GITHUB_TOKEN}"
+          API="https://api.github.com"
+
+          # List branches on the user's winget-pkgs fork
+          FORK_BRANCHES=$(curl -sf -H "$AUTH_HEADER" -H "Accept: application/vnd.github+json" \
+            "${API}/repos/${AUTHOR}/winget-pkgs/branches?per_page=100" \
+            | jq -r '[.[] | .name | select(startswith("SevIQ.ThemeToggle"))] | .[]') || true
 
           # For each branch, check if there's an open PR
           OPEN_PRS="[]"
-          for BRANCH in $(echo "$FORK_BRANCHES" | jq -r '.[]'); do
-            PR_DATA=$(gh api "repos/microsoft/winget-pkgs/pulls?state=open&head=${AUTHOR}:${BRANCH}" \
-              --jq '[.[] | {number, title, url: .html_url, createdAt: .created_at}]' 2>/dev/null) || continue
+          for BRANCH in $FORK_BRANCHES; do
+            PR_DATA=$(curl -sf -H "$AUTH_HEADER" -H "Accept: application/vnd.github+json" \
+              "${API}/repos/microsoft/winget-pkgs/pulls?state=open&head=${AUTHOR}:${BRANCH}" \
+              | jq '[.[] | {number, title, url: .html_url, createdAt: .created_at}]') || continue
 
             PR_COUNT=$(echo "$PR_DATA" | jq 'length')
             if [ "$PR_COUNT" -gt 0 ]; then
