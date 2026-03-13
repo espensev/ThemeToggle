@@ -73,6 +73,8 @@ pwsh -File .\tools\validate-winget.ps1 -Version 1.6.0
 wingetcreate submit --prtitle "Update SevIQ.ThemeToggle 1.6.0" --token <PAT> winget
 ```
 
+Keep `Scope: user` only on the NSIS installer entry. Do not move `Scope` to the manifest root or add it to the portable ZIP entry — `winget validate` rejects `Scope` for portable installers.
+
 `wingetcreate update` is only suitable when installer URL mapping matches the existing manifest shape. For this package (installer + portable ZIP), submitting the curated local manifests is the most reliable path.
 
 ## Troubleshooting

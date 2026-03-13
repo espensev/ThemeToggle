@@ -121,6 +121,33 @@ if ($installerYaml -notmatch "(?m)^\s*PortableCommandAlias:\s*ThemeToggle\s*$") 
 }
 Ok "Portable installer shape is present"
 
+$installerSection = ($installerYaml -split '(?m)^ManifestType:\s*installer\s*$', 2)[0]
+if ($installerSection -match '(?m)^Scope:\s*') {
+    Fail "Top-level Scope is not supported for this manifest because the portable ZIP installer cannot declare Scope."
+}
+
+$installerBlocks = [regex]::Split($installerSection, '(?m)^(?=- Architecture:\s)') | Where-Object {
+    $_ -match '^- Architecture:\s'
+}
+
+if ($installerBlocks.Count -lt 2) {
+    Fail "Expected installer and portable installer entries. Found: $($installerBlocks.Count)"
+}
+
+if ($installerBlocks[0] -notmatch '(?m)^\s*Scope:\s*user\s*$') {
+    Fail "Primary installer entry must keep Scope: user."
+}
+
+$portableBlock = $installerBlocks | Where-Object { $_ -match '(?m)^\s*InstallerType:\s*zip\s*$' } | Select-Object -First 1
+if (-not $portableBlock) {
+    Fail "Could not locate the portable ZIP installer block."
+}
+
+if ($portableBlock -match '(?m)^\s*Scope:\s*') {
+    Fail "Portable ZIP installer entry must not declare Scope; winget validate rejects Scope for portable installers."
+}
+Ok "Installer scope rules are correct"
+
 $shaLines = [regex]::Matches($installerYaml, '(?m)^\s*InstallerSha256:\s*(\S+)\s*$')
 if ($shaLines.Count -lt 2) {
     Fail "Expected at least 2 InstallerSha256 entries (installer + portable). Found: $($shaLines.Count)"
