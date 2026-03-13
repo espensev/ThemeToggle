@@ -22,22 +22,17 @@ jobs:
     steps:
       - name: Check WinGet PR status
         env:
-          GH_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          PACKAGE_ID="SevIQ.ThemeToggle"
           AUTHOR="espensev"
 
           echo "Checking for open WinGet PRs by $AUTHOR..."
 
-          # Search for open PRs
-          OPEN_PRS=$(gh search prs \
-            --repo microsoft/winget-pkgs \
-            --author "$AUTHOR" \
-            --state open \
-            --json number,title,url,createdAt \
-            --limit 10 2>&1) || true
+          # Search for open PRs using the GitHub API directly
+          OPEN_PRS=$(gh api "search/issues?q=repo:microsoft/winget-pkgs+author:${AUTHOR}+type:pr+state:open&per_page=10" \
+            --jq '[.items[] | {number, title, url: .pull_request.html_url, createdAt: .created_at}]' 2>&1) || OPEN_PRS="[]"
 
-          OPEN_COUNT=$(echo "$OPEN_PRS" | jq 'length // 0')
+          OPEN_COUNT=$(echo "$OPEN_PRS" | jq 'length')
 
           if [ "$OPEN_COUNT" -eq 0 ]; then
             echo "No open WinGet PRs found."
@@ -48,22 +43,15 @@ jobs:
           echo "Found $OPEN_COUNT open PR(s):"
           echo "$OPEN_PRS" | jq -r '.[] | "  #\(.number): \(.title) (\(.createdAt))"'
 
-          # Check each PR for reviews and check status
+          # Build summary
           SUMMARY=""
           NEEDS_ACTION=false
 
-          for PR_NUM in $(echo "$OPEN_PRS" | jq -r '.[].number'); do
-            PR_TITLE=$(echo "$OPEN_PRS" | jq -r ".[] | select(.number == $PR_NUM) | .title")
-            PR_URL=$(echo "$OPEN_PRS" | jq -r ".[] | select(.number == $PR_NUM) | .url")
-            PR_CREATED=$(echo "$OPEN_PRS" | jq -r ".[] | select(.number == $PR_NUM) | .createdAt")
-
-            # Get review status
-            REVIEWS=$(gh api "repos/microsoft/winget-pkgs/pulls/$PR_NUM/reviews" \
-              --jq '[.[] | select(.state != "COMMENTED")] | length' 2>/dev/null) || REVIEWS=0
-
-            # Get check status
-            CHECKS=$(gh api "repos/microsoft/winget-pkgs/pulls/$PR_NUM" \
-              --jq '.mergeable_state' 2>/dev/null) || CHECKS="unknown"
+          for ROW in $(echo "$OPEN_PRS" | jq -c '.[]'); do
+            PR_NUM=$(echo "$ROW" | jq -r '.number')
+            PR_TITLE=$(echo "$ROW" | jq -r '.title')
+            PR_URL=$(echo "$ROW" | jq -r '.url')
+            PR_CREATED=$(echo "$ROW" | jq -r '.createdAt')
 
             # Calculate age in days
             CREATED_TS=$(date -d "$PR_CREATED" +%s 2>/dev/null) || CREATED_TS=0
@@ -78,7 +66,7 @@ jobs:
               STATUS_ICON="🟠"
             fi
 
-            SUMMARY="${SUMMARY}${STATUS_ICON} [#${PR_NUM}](${PR_URL}): **${PR_TITLE}** (${AGE_DAYS}d old, mergeable: ${CHECKS})\n"
+            SUMMARY="${SUMMARY}${STATUS_ICON} [#${PR_NUM}](${PR_URL}): **${PR_TITLE}** (${AGE_DAYS}d old)\n"
           done
 
           echo "STATUS=open" >> $GITHUB_ENV
