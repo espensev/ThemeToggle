@@ -28,24 +28,21 @@ jobs:
 
           echo "Checking for open WinGet PRs by $AUTHOR..."
 
-          # List open PRs on microsoft/winget-pkgs by this author
-          # Use the pulls endpoint with pagination — works with any token scope
+          # List branches on the user's winget-pkgs fork to find PR branches
+          # Each wingetcreate submission creates a branch like "SevIQ.ThemeToggle-X.Y.Z-<uuid>"
+          FORK_BRANCHES=$(gh api "repos/${AUTHOR}/winget-pkgs/branches?per_page=100" \
+            --jq '[.[] | .name | select(startswith("SevIQ.ThemeToggle"))]' 2>/dev/null) || FORK_BRANCHES="[]"
+
+          # For each branch, check if there's an open PR
           OPEN_PRS="[]"
-          PAGE=1
-          while true; do
-            PAGE_RESULT=$(gh api "repos/microsoft/winget-pkgs/pulls?state=open&per_page=100&page=${PAGE}" \
-              --jq "[.[] | select(.user.login == \"${AUTHOR}\") | {number, title, url: .html_url, createdAt: .created_at}]" 2>/dev/null) || break
+          for BRANCH in $(echo "$FORK_BRANCHES" | jq -r '.[]'); do
+            PR_DATA=$(gh api "repos/microsoft/winget-pkgs/pulls?state=open&head=${AUTHOR}:${BRANCH}" \
+              --jq '[.[] | {number, title, url: .html_url, createdAt: .created_at}]' 2>/dev/null) || continue
 
-            PAGE_COUNT=$(echo "$PAGE_RESULT" | jq 'length')
-            if [ "$PAGE_COUNT" -gt 0 ]; then
-              OPEN_PRS=$(echo "$OPEN_PRS $PAGE_RESULT" | jq -s 'add')
+            PR_COUNT=$(echo "$PR_DATA" | jq 'length')
+            if [ "$PR_COUNT" -gt 0 ]; then
+              OPEN_PRS=$(echo "$OPEN_PRS" "$PR_DATA" | jq -s 'add')
             fi
-
-            # winget-pkgs has many PRs; only scan first 3 pages (300 PRs)
-            if [ "$PAGE_COUNT" -lt 100 ] || [ "$PAGE" -ge 3 ]; then
-              break
-            fi
-            PAGE=$((PAGE + 1))
           done
 
           OPEN_COUNT=$(echo "$OPEN_PRS" | jq 'length')
