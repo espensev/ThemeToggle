@@ -175,6 +175,9 @@ function Try-SignFile {
 function Update-WingetManifests {
     param([string]$Ver)
 
+    # Schema version required by the winget-pkgs repository
+    $wingetManifestVersion = '1.12.0'
+
     $installerFile = Get-ChildItem -Path $repoRoot -Filter "ThemeToggle-Setup-$Ver.exe" -ErrorAction SilentlyContinue |
                      Select-Object -First 1
     if (-not $installerFile) {
@@ -250,7 +253,7 @@ function Update-WingetManifests {
         return $replacement
     })
 
-    if ($urlIndex -lt $urlValues.Count -or $shaIndex -lt $shaValues.Count) {
+    if ($urlState.Index -lt $urlValues.Count -or $shaState.Index -lt $shaValues.Count) {
         Write-Warn "Installer manifest did not contain the expected installer and portable entries."
     }
 
@@ -264,6 +267,10 @@ function Update-WingetManifests {
     $today = Get-Date -Format 'yyyy-MM-dd'
     $content = $content -replace '(?m)^(\s*ReleaseDate:\s*).+$', ('${1}' + $today)
 
+    # Update schema version to current winget-pkgs requirement
+    $content = $content -replace '(https://aka\.ms/winget-manifest\.installer\.)[\d\.]+(\schema\.json)', "`${1}$wingetManifestVersion`${2}"
+    $content = $content -replace '(?m)^(\s*ManifestVersion:\s*)[\d\.]+$', "`${1}$wingetManifestVersion"
+
     $content | Set-Content $manifestPath -NoNewline -Encoding UTF8
     Write-Success "Updated: SevIQ.ThemeToggle.installer.yaml"
 
@@ -272,6 +279,8 @@ function Update-WingetManifests {
     if (Test-Path $versionManifestPath) {
         $vm = Get-Content $versionManifestPath -Raw
         $vm = $vm -replace 'PackageVersion:\s*[\d\.]+', "PackageVersion: $Ver"
+        $vm = $vm -replace '(https://aka\.ms/winget-manifest\.version\.)[\d\.]+(\schema\.json)', "`${1}$wingetManifestVersion`${2}"
+        $vm = $vm -replace '(?m)^(\s*ManifestVersion:\s*)[\d\.]+$', "`${1}$wingetManifestVersion"
         $vm | Set-Content $versionManifestPath -NoNewline -Encoding UTF8
         Write-Success "Updated: SevIQ.ThemeToggle.yaml"
     }
@@ -282,6 +291,8 @@ function Update-WingetManifests {
         $lm = Get-Content $localeManifestPath -Raw
         $lm = $lm -replace 'PackageVersion:\s*[\d\.]+', "PackageVersion: $Ver"
         $lm = $lm -replace 'ReleaseNotesUrl:\s*\S+', "ReleaseNotesUrl: https://github.com/$repoSlug/releases/tag/v$Ver"
+        $lm = $lm -replace '(https://aka\.ms/winget-manifest\.defaultLocale\.)[\d\.]+(\schema\.json)', "`${1}$wingetManifestVersion`${2}"
+        $lm = $lm -replace '(?m)^(\s*ManifestVersion:\s*)[\d\.]+$', "`${1}$wingetManifestVersion"
         $lm | Set-Content $localeManifestPath -NoNewline -Encoding UTF8
         Write-Success "Updated: SevIQ.ThemeToggle.locale.en-US.yaml"
     }

@@ -1,5 +1,5 @@
 # Created using wingetcreate 1.10.3.0
-# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 
 PackageIdentifier: SevIQ.ThemeToggle
 PackageVersion: 1.5.5
@@ -18,7 +18,7 @@ Installers:
 - Architecture: x64
   Scope: user
   InstallerUrl: https://github.com/espensev/ThemeToggle/releases/download/v1.5.5/ThemeToggle-Setup-1.5.5.exe
-  InstallerSha256: 5adf053b46149d1d7513ca7975ca8c16d5db899e35829377d3d4e9a7c8dbe3e5
+  InstallerSha256: 5a852de95ef321eca873232b448d316da33f77c5817bea5ffa2d191a26138ebb
   InstallerSwitches:
     Silent: /S
     SilentWithProgress: /S
@@ -27,11 +27,11 @@ Installers:
 - Architecture: x64
   InstallerType: zip
   InstallerUrl: https://github.com/espensev/ThemeToggle/releases/download/v1.5.5/ThemeToggle-Portable.zip
-  InstallerSha256: b198a461155bdcd01e90e0c17d1c026987bdfeb2a05535ee9b883a8b5bb58556
+  InstallerSha256: bbf4c580ae2e65debfeae11e6ad84c2a431ce8328a3abd443f778f24274ea917
   NestedInstallerType: portable
   NestedInstallerFiles:
   - RelativeFilePath: ThemeToggle.exe
     PortableCommandAlias: ThemeToggle
 
 ManifestType: installer
-ManifestVersion: 1.10.0
+ManifestVersion: 1.12.0
