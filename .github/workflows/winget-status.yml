@@ -60,8 +60,10 @@ jobs:
           # Build summary
           SUMMARY=""
           NEEDS_ACTION=false
+          NOW_TS=$(date +%s)
 
-          for ROW in $(echo "$OPEN_PRS" | jq -c '.[]'); do
+          while IFS= read -r ROW; do
+            [ -z "$ROW" ] && continue
             PR_NUM=$(echo "$ROW" | jq -r '.number')
             PR_TITLE=$(echo "$ROW" | jq -r '.title')
             PR_URL=$(echo "$ROW" | jq -r '.url')
@@ -69,7 +71,6 @@ jobs:
 
             # Calculate age in days
             CREATED_TS=$(date -d "$PR_CREATED" +%s 2>/dev/null) || CREATED_TS=0
-            NOW_TS=$(date +%s)
             AGE_DAYS=$(( (NOW_TS - CREATED_TS) / 86400 ))
 
             STATUS_ICON="🟡"
@@ -81,7 +82,7 @@ jobs:
             fi
 
             SUMMARY="${SUMMARY}${STATUS_ICON} [#${PR_NUM}](${PR_URL}): **${PR_TITLE}** (${AGE_DAYS}d old)\n"
-          done
+          done < <(echo "$OPEN_PRS" | jq -c '.[]')
 
           echo "STATUS=open" >> $GITHUB_ENV
           echo "PR_COUNT=$OPEN_COUNT" >> $GITHUB_ENV
