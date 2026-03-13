@@ -29,14 +29,18 @@ jobs:
           echo "Checking for open WinGet PRs by $AUTHOR..."
 
           # List open PRs from the user's winget-pkgs fork
-          # gh search requires specific token scopes; use the REST API instead
-          OPEN_PRS=$(gh api "search/issues" \
-            -f q="repo:microsoft/winget-pkgs author:${AUTHOR} type:pr state:open" \
-            --jq '[.items[] | {number, title, url: .html_url, createdAt: .created_at}]' 2>/dev/null) || OPEN_PRS="[]"
+          # Use the REST search API with the classic PAT for cross-repo access
+          SEARCH_RESULT=$(gh api "search/issues" \
+            -f q="repo:microsoft/winget-pkgs author:${AUTHOR} is:pr is:open" \
+            2>&1) || true
+
+          echo "Search total_count: $(echo "$SEARCH_RESULT" | jq '.total_count // "parse_error"' 2>/dev/null)"
+
+          OPEN_PRS=$(echo "$SEARCH_RESULT" | jq '[.items[]? | {number, title, url: .html_url, createdAt: .created_at}]' 2>/dev/null) || OPEN_PRS="[]"
 
           # Validate we got valid JSON
           if ! echo "$OPEN_PRS" | jq empty 2>/dev/null; then
-            echo "Search returned invalid response, falling back to empty"
+            echo "::warning::Search returned invalid response"
             OPEN_PRS="[]"
           fi
 
