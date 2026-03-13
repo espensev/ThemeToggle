@@ -126,15 +126,22 @@ if ($installerSection -match '(?m)^Scope:\s*') {
     Fail "Top-level Scope is not supported for this manifest because the portable ZIP installer cannot declare Scope."
 }
 
-$installerBlocks = [regex]::Split($installerSection, '(?m)^(?=- Architecture:\s)') | Where-Object {
-    $_ -match '^- Architecture:\s'
+$installerBlocks = [regex]::Split($installerSection, '(?m)^(?=- Architecture:\s*)') | Where-Object {
+    $_ -match '^- Architecture:\s*'
 }
 
 if ($installerBlocks.Count -lt 2) {
     Fail "Expected installer and portable installer entries. Found: $($installerBlocks.Count)"
 }
 
-if ($installerBlocks[0] -notmatch '(?m)^\s*Scope:\s*user\s*$') {
+$primaryInstallerBlock = $installerBlocks | Where-Object {
+    $_ -notmatch '(?m)^\s*InstallerType:\s*zip\s*$'
+} | Select-Object -First 1
+if (-not $primaryInstallerBlock) {
+    Fail "Could not locate the primary installer block."
+}
+
+if ($primaryInstallerBlock -notmatch '(?m)^\s*Scope:\s*user\s*$') {
     Fail "Primary installer entry must keep Scope: user."
 }
 
