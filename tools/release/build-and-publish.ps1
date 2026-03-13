@@ -223,28 +223,30 @@ function Update-WingetManifests {
         "$releaseBase/ThemeToggle-Setup-$Ver.exe",
         "$releaseBase/ThemeToggle-Portable.zip"
     )
-    $urlIndex = 0
+    $urlState = @{ Index = 0 }
     $content = [regex]::Replace($content, '(?m)^(\s*InstallerUrl:\s*).+$', {
         param($match)
-        if ($urlIndex -ge $urlValues.Count) {
+        $i = $urlState.Index
+        if ($i -ge $urlValues.Count) {
             return $match.Value
         }
 
-        $replacement = $match.Groups[1].Value + $urlValues[$urlIndex]
-        $urlIndex++
+        $replacement = $match.Groups[1].Value + $urlValues[$i]
+        $urlState.Index++
         return $replacement
     })
 
     $shaValues = @($installerSha256, $portableSha256)
-    $shaIndex = 0
+    $shaState = @{ Index = 0 }
     $content = [regex]::Replace($content, '(?m)^(\s*InstallerSha256:\s*).+$', {
         param($match)
-        if ($shaIndex -ge $shaValues.Count) {
+        $i = $shaState.Index
+        if ($i -ge $shaValues.Count) {
             return $match.Value
         }
 
-        $replacement = $match.Groups[1].Value + $shaValues[$shaIndex]
-        $shaIndex++
+        $replacement = $match.Groups[1].Value + $shaValues[$i]
+        $shaState.Index++
         return $replacement
     })
 
