@@ -19,7 +19,8 @@ git push origin v1.6.0
 ```
 
 The pipeline builds all artifacts, calculates SHA256 hashes, creates a GitHub Release, and triggers the WinGet publish workflow. The Release workflow verifies that the `VERSION` file matches the tag.
-It also regenerates the `winget/` manifests from the CI-built artifacts and uploads those generated manifests for the downstream WinGet publish job.
+It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built installer and portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
+Tags that are not reachable from `main` are rejected by the release workflow.
 
 ## Manual release
 
@@ -64,6 +65,8 @@ The WinGet publish workflow runs automatically after a successful release. It va
 gh workflow run "Publish to WinGet" -f version=1.6.0 -f dry_run=false
 ```
 
+Manual runs auto-discover the latest successful `Release` workflow for the requested tag and restore the uploaded `winget-manifests` artifact before validating or submitting anything. To force a specific snapshot, pass `release_run_id` as an additional workflow input.
+
 ### Manual submission
 
 Submit the local `winget/` manifests (recommended):
@@ -75,8 +78,12 @@ wingetcreate submit --prtitle "Update SevIQ.ThemeToggle 1.6.0" --token <PAT> win
 
 `wingetcreate update` is only suitable when installer URL mapping matches the existing manifest shape. For this package (installer + portable ZIP), submitting the curated local manifests is the most reliable path.
 
+Keep the manifest schema headers and `ManifestVersion` on the last version that passes `winget validate --manifest winget` in GitHub Actions. Do not bump them just to match newer winget-pkgs checklist text. As of `2026-03-13`, the validated schema version in this repo is `1.10.0`.
+
 ## Troubleshooting
 
 **SHA256 mismatch** — Recalculate from the published artifact and compare against the manifest value.
 
 **Token issues** — Use a classic PAT with `public_repo` scope. The PAT owner must have forked `microsoft/winget-pkgs`. `WINGET_GITHUB_TOKEN` must be set as a repo secret.
+
+**Schema header warnings / `winget validate` failure** — If `winget validate --manifest winget` reports schema header URL warnings or fails immediately after a schema bump, revert the manifest header URLs and `ManifestVersion` fields to the last validated repo version (`1.10.0` currently) and rerun validation before publishing.

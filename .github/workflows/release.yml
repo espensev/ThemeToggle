@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract version from tag
         id: version
@@ -27,6 +29,26 @@ jobs:
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           echo "TAG=$tag" >> $env:GITHUB_OUTPUT
           echo "Releasing version: $version"
+        shell: pwsh
+
+      - name: Ensure tag commit is reachable from main
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $tagCommit = (git rev-list -n 1 $tag).Trim()
+
+          if (-not $tagCommit) {
+            Write-Error "Could not resolve tag commit for $tag"
+            exit 1
+          }
+
+          git fetch origin main --force
+          & git merge-base --is-ancestor $tagCommit origin/main
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Tag $tag points to $tagCommit, which is not reachable from origin/main."
+            exit 1
+          }
+
+          echo "Tag commit is reachable from origin/main: $tagCommit"
         shell: pwsh
 
       - name: Verify VERSION file matches tag
@@ -87,7 +109,7 @@ jobs:
           .\tools\validate-winget.ps1 `
             -Version "${{ steps.version.outputs.VERSION }}" `
             -RepoSlug "${{ github.repository }}" `
-            -SkipWingetCli
+            -VerifyLocalArtifacts
         shell: pwsh
 
       - name: Stage generated WinGet manifests
@@ -108,7 +130,7 @@ jobs:
           path: |
             release-inputs/VERSION
             release-inputs/winget/*.yaml
-          retention-days: 14
+          retention-days: 90
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

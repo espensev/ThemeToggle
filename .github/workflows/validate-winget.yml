@@ -7,9 +7,21 @@ on:
   push:
     paths:
       - 'winget/**'
+      - 'tools/validate-winget.ps1'
+      - 'tools/bump-version.ps1'
+      - 'tools/release/**'
+      - '.github/workflows/validate-winget.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/winget-publish.yml'
   pull_request:
     paths:
       - 'winget/**'
+      - 'tools/validate-winget.ps1'
+      - 'tools/bump-version.ps1'
+      - 'tools/release/**'
+      - '.github/workflows/validate-winget.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/winget-publish.yml'
 
 jobs:
   validate:

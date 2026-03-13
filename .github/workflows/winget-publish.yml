@@ -17,6 +17,10 @@ on:
         description: 'Version to publish (e.g., 1.6.0)'
         required: true
         type: string
+      release_run_id:
+        description: 'Optional Release workflow run ID to source manifests from'
+        required: false
+        type: string
       dry_run:
         description: 'Dry run (validate only, do not submit PR)'
         required: false
@@ -37,35 +41,87 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Resolve release manifest source
+        id: source
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_run") {
+            $runId = "${{ github.event.workflow_run.id }}"
+            $requestedVersion = ""
+            echo "Using triggering Release workflow run: $runId"
+          } else {
+            $requestedVersion = "${{ inputs.version }}"
+            if (-not $requestedVersion) {
+              Write-Error "version input is required for manual publish runs."
+              exit 1
+            }
+
+            if ("${{ inputs.release_run_id }}" -ne "") {
+              $runId = "${{ inputs.release_run_id }}"
+              echo "Using manually supplied Release workflow run: $runId"
+            } else {
+              $tag = "v$requestedVersion"
+              $headers = @{
+                Accept = "application/vnd.github+json"
+                Authorization = "Bearer $env:GITHUB_TOKEN"
+                "User-Agent" = "ThemeToggle-winget-publish"
+                "X-GitHub-Api-Version" = "2022-11-28"
+              }
+              $url = "${{ github.api_url }}/repos/${{ github.repository }}/actions/workflows/release.yml/runs?event=push&status=success&per_page=50"
+              $response = Invoke-RestMethod -Uri $url -Headers $headers -ErrorAction Stop
+              $matchingRun = @(
+                $response.workflow_runs |
+                  Where-Object { $_.head_branch -eq $tag -and $_.conclusion -eq "success" } |
+                  Sort-Object created_at -Descending
+              ) | Select-Object -First 1
+
+              if (-not $matchingRun) {
+                Write-Error "Could not find a successful Release workflow run for $tag. Supply release_run_id or rerun the Release workflow."
+                exit 1
+              }
+
+              $runId = "$($matchingRun.id)"
+              echo "Auto-selected Release workflow run $runId for $tag"
+            }
+          }
+
+          echo "RUN_ID=$runId" >> $env:GITHUB_OUTPUT
+          echo "REQUESTED_VERSION=$requestedVersion" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
       - name: Download generated release manifests
-        if: ${{ github.event_name == 'workflow_run' }}
         uses: actions/download-artifact@v4
         with:
           name: winget-manifests
           path: generated-release
           github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.source.outputs.RUN_ID }}
 
       - name: Restore generated release manifests
-        if: ${{ github.event_name == 'workflow_run' }}
         run: |
           Copy-Item "generated-release\VERSION" "VERSION" -Force
           Copy-Item "generated-release\winget\*.yaml" "winget\" -Force
         shell: pwsh
 
-      - name: Get version from release
+      - name: Get version from manifest snapshot
         id: version
         run: |
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            # Manual trigger - use input version
-            $version = "${{ inputs.version }}"
-          } else {
-            # Automatic trigger - get version from VERSION file
-            $version = (Get-Content "VERSION" -Raw).Trim()
+          $version = (Get-Content "VERSION" -Raw).Trim()
+          $requestedVersion = "${{ steps.source.outputs.REQUESTED_VERSION }}"
+
+          if (-not $version) {
+            Write-Error "VERSION file from release manifest snapshot is empty."
+            exit 1
+          }
+
+          if ($requestedVersion -and $requestedVersion -ne $version) {
+            Write-Error "Requested version ($requestedVersion) does not match the downloaded release manifest snapshot ($version)."
+            exit 1
           }
 
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-          echo "Publishing version: $version"
+          echo "Publishing version from release manifest snapshot: $version"
         shell: pwsh
 
       - name: Verify release exists
@@ -107,10 +163,13 @@ jobs:
         shell: pwsh
 
       - name: Validate local WinGet manifests
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           .\tools\validate-winget.ps1 `
             -Version "${{ steps.version.outputs.VERSION }}" `
-            -RepoSlug "${{ github.repository }}"
+            -RepoSlug "${{ github.repository }}" `
+            -VerifyGitHubReleaseDigests
         shell: pwsh
 
       - name: Submit manifests and open PR
