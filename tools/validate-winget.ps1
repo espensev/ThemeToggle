@@ -137,7 +137,7 @@ if ($installerBlocks.Count -lt 2) {
 foreach ($installerBlock in $installerBlocks) {
     if ($installerBlock -notmatch '(?m)^\s*InstallerUrl:\s*\S+\s*$' -or
         $installerBlock -notmatch '(?m)^\s*InstallerSha256:\s*\S+\s*$') {
-        Fail "Installer entry parsing failed; each installer block must include InstallerUrl and InstallerSha256."
+        Fail "Installer block missing required fields; each block must include InstallerUrl and InstallerSha256."
     }
 }
 
