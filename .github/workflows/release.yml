@@ -100,51 +100,40 @@ jobs:
         with:
           arch: x64
 
-      - name: Install NSIS
-        run: |
-          choco install nsis -y
-          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
-        shell: pwsh
-
       - name: Build release artifacts
         run: |
           .\tools\release\build-and-publish.ps1 -NoInstaller
         shell: pwsh
 
-      - name: Verify Authenticode signatures
+      - name: Verify Authenticode signature
         env:
           EXPECTED_THUMBPRINT: ${{ secrets.THEMETOGGLE_SIGN_CERT_THUMBPRINT }}
         run: |
-          $files = @(
-            "ThemeToggle.exe"
-          )
+          $file = "ThemeToggle.exe"
+          $signature = Get-AuthenticodeSignature $file
+          if ($signature.Status -ne "Valid") {
+            Write-Error "$file signature status is $($signature.Status): $($signature.StatusMessage)"
+            exit 1
+          }
 
-          foreach ($file in $files) {
-            $signature = Get-AuthenticodeSignature $file
-            if ($signature.Status -ne "Valid") {
-              Write-Error "$file signature status is $($signature.Status): $($signature.StatusMessage)"
+          if (-not $signature.SignerCertificate) {
+            Write-Error "$file has a valid status but no signer certificate metadata."
+            exit 1
+          }
+
+          $actualThumbprint = $signature.SignerCertificate.Thumbprint
+          Write-Host "$file signed by $($signature.SignerCertificate.Subject)"
+          Write-Host "$file thumbprint: $actualThumbprint"
+
+          if ($env:EXPECTED_THUMBPRINT) {
+            $expected = ($env:EXPECTED_THUMBPRINT -replace '\s', '').ToUpperInvariant()
+            if ($actualThumbprint -ne $expected) {
+              Write-Error "$file signed by unexpected certificate. Expected thumbprint: $expected, got: $actualThumbprint"
               exit 1
             }
-
-            if (-not $signature.SignerCertificate) {
-              Write-Error "$file has a valid status but no signer certificate metadata."
-              exit 1
-            }
-
-            $actualThumbprint = $signature.SignerCertificate.Thumbprint
-            Write-Host "$file signed by $($signature.SignerCertificate.Subject)"
-            Write-Host "$file thumbprint: $actualThumbprint"
-
-            if ($env:EXPECTED_THUMBPRINT) {
-              $expected = ($env:EXPECTED_THUMBPRINT -replace '\s', '').ToUpperInvariant()
-              if ($actualThumbprint -ne $expected) {
-                Write-Error "$file signed by unexpected certificate. Expected thumbprint: $expected, got: $actualThumbprint"
-                exit 1
-              }
-              Write-Host "$file certificate thumbprint verified."
-            } else {
-              Write-Warning "THEMETOGGLE_SIGN_CERT_THUMBPRINT secret not set — skipping signer identity check."
-            }
+            Write-Host "$file certificate thumbprint verified."
+          } else {
+            Write-Warning "THEMETOGGLE_SIGN_CERT_THUMBPRINT secret not set — skipping signer identity check."
           }
         shell: pwsh
 
@@ -206,8 +195,8 @@ jobs:
 
             | File | Description | SHA256 |
             |------|-------------|--------|
-            | `ThemeToggle.exe` | Standalone executable (~220 KB) | `${{ steps.hashes.outputs.EXE_SHA256 }}` |
-            | `ThemeToggle-Portable.zip` | Portable package | `${{ steps.hashes.outputs.ZIP_SHA256 }}` |
+            | `ThemeToggle.exe` | Signed standalone executable | `${{ steps.hashes.outputs.EXE_SHA256 }}` |
+            | `ThemeToggle-Portable.zip` | Portable package (includes signed exe) | `${{ steps.hashes.outputs.ZIP_SHA256 }}` |
 
             ## Installation
 
@@ -217,7 +206,7 @@ jobs:
             ```
 
             ### Manual
-            Download the standalone EXE or extract the portable ZIP.
+            Download the portable ZIP and extract, or use the standalone exe directly.
 
             ## Quick Start
             ```cmd

@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 
 PackageIdentifier: SevIQ.ThemeToggle
-PackageVersion: 1.5.6
+PackageVersion: 1.5.7
 PackageLocale: en-US
 Publisher: SevIQ
 PublisherUrl: https://github.com/espensev
@@ -56,7 +56,7 @@ ReleaseNotes: |-
   Observed toggle duration on test systems remains around 10-15 ms.
 
   See full changelog at: https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
-ReleaseNotesUrl: https://github.com/espensev/ThemeToggle/releases/tag/v1.5.6
+ReleaseNotesUrl: https://github.com/espensev/ThemeToggle/releases/tag/v1.5.7
 Documentations:
 - DocumentLabel: Quick Start Guide
   DocumentUrl: https://github.com/espensev/ThemeToggle#quick-start

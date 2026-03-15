@@ -73,6 +73,18 @@ function Test-SigningConfigured {
     return ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT -or $env:THEMETOGGLE_SIGN_PFX_PATH -or $env:PFX_PATH)
 }
 
+function Test-TaggedCiRelease {
+    if ($env:GITHUB_ACTIONS -ne "true") {
+        return $false
+    }
+
+    if ($env:GITHUB_REF_TYPE -eq "tag") {
+        return $true
+    }
+
+    return $env:GITHUB_REF -like "refs/tags/*"
+}
+
 # ============================================================================
 # Signing functions (inlined from tools/signing/sign-release.ps1)
 # ============================================================================
@@ -287,6 +299,18 @@ if ($DryRun) {
 
 $signingEnabled = (Test-SigningConfigured) -and (-not $NoSign)
 $currentVersion = Get-CurrentVersion
+
+if (Test-TaggedCiRelease) {
+    if ($NoSign) {
+        Write-Err "Tagged CI releases must remain signed. Remove -NoSign."
+        exit 1
+    }
+
+    if (-not (Test-SigningConfigured)) {
+        Write-Err "Tagged CI releases require signing credentials."
+        exit 1
+    }
+}
 
 Write-Host ""
 Write-Host "  Current version : $currentVersion" -ForegroundColor White
