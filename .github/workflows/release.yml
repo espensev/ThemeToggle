@@ -88,6 +88,22 @@ jobs:
           $pfxBytes = [System.Convert]::FromBase64String(($env:THEMETOGGLE_SIGN_PFX_BASE64 -replace '\s', ''))
           [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
 
+          # Import the signing cert into the runner's trusted root store so
+          # Get-AuthenticodeSignature returns "Valid" instead of "UnknownError"
+          # for self-signed certificates.
+          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+            $pfxPath, $env:THEMETOGGLE_SIGN_PFX_PASSWORD,
+            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet
+          )
+          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+            "Root", "CurrentUser"
+          )
+          $store.Open("ReadWrite")
+          $store.Add($cert)
+          $store.Close()
+          $cert.Dispose()
+          Write-Host "Signing certificate imported into CurrentUser\Root trust store."
+
           Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PATH=$pfxPath"
           Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PASSWORD=$env:THEMETOGGLE_SIGN_PFX_PASSWORD"
         shell: pwsh
@@ -222,8 +238,25 @@ jobs:
 
       - name: Remove signing certificate
         if: always()
+        env:
+          THEMETOGGLE_SIGN_CERT_THUMBPRINT: ${{ secrets.THEMETOGGLE_SIGN_CERT_THUMBPRINT }}
         run: |
+          # Remove PFX file from disk
           if ($env:THEMETOGGLE_SIGN_PFX_PATH -and (Test-Path $env:THEMETOGGLE_SIGN_PFX_PATH)) {
             Remove-Item $env:THEMETOGGLE_SIGN_PFX_PATH -Force
+            Write-Host "Removed PFX file."
+          }
+
+          # Remove cert from trust store
+          if ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT) {
+            $thumbprint = ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT -replace '\s', '')
+            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+              "Root", "CurrentUser"
+            )
+            $store.Open("ReadWrite")
+            $certs = $store.Certificates | Where-Object { $_.Thumbprint -eq $thumbprint }
+            foreach ($c in $certs) { $store.Remove($c) }
+            $store.Close()
+            Write-Host "Removed certificate from CurrentUser\Root trust store."
           }
         shell: pwsh
