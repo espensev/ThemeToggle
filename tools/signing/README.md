@@ -90,6 +90,60 @@ gh secret set THEMETOGGLE_SIGN_PFX_PASSWORD --repo owner/repo
 gh secret set THEMETOGGLE_SIGN_CERT_THUMBPRINT --repo owner/repo
 ```
 
-### How it works
+### End-to-end signing flow
 
-The release workflow restores that PFX into the runner temp directory, sets `THEMETOGGLE_SIGN_PFX_PATH` and `THEMETOGGLE_SIGN_PFX_PASSWORD`, signs the EXE, and then verifies the Authenticode signature before publishing the GitHub Release. The PFX is deleted in an `always()` cleanup step.
+```
+YOU (one-time setup)                      GITHUB ACTIONS (every tagged release)
+─────────────────────                     ────────────────────────────────────
+
+1. Have PFX + password on your machine
+   (env vars or file on disk)
+
+2. Run set-github-secrets.ps1
+   ├─ Reads PFX from env / param
+   ├─ Base64-encodes PFX ──────────────► THEMETOGGLE_SIGN_PFX_BASE64
+   ├─ Passes password through ─────────► THEMETOGGLE_SIGN_PFX_PASSWORD
+   └─ Extracts thumbprint ────────────► THEMETOGGLE_SIGN_CERT_THUMBPRINT
+
+3. Push a version tag
+   git tag v1.x.x && git push --tags
+                                          4. Workflow triggers on v*.*.*
+                                             ├─ Validate tag on main + VERSION match
+                                             ├─ Require secrets (fail-fast if missing)
+                                             │
+                                             ├─ MATERIALIZE CERT
+                                             │   ├─ Decode base64 → PFX file in runner temp
+                                             │   └─ Set PFX_PATH + PASSWORD in env
+                                             │
+                                             ├─ BUILD + SIGN
+                                             │   ├─ build-and-publish.ps1 -NoInstaller
+                                             │   ├─ Compiles ThemeToggle.exe
+                                             │   ├─ Signs exe with signtool (reads PFX from env)
+                                             │   └─ Creates ThemeToggle-Portable.zip (contains signed exe)
+                                             │
+                                             ├─ VERIFY
+                                             │   ├─ Get-AuthenticodeSignature
+                                             │   ├─ Compare thumbprint against CERT_THUMBPRINT secret
+                                             │   └─ Accept Valid, or expected self-signed untrusted-root UnknownError
+                                             │
+                                             ├─ PUBLISH
+                                             │   ├─ SHA256 hashes for exe + zip
+                                             │   ├─ Validate winget manifests
+                                             │   └─ Create GitHub Release with artifacts
+                                             │
+                                             └─ CLEANUP (always runs)
+                                                 └─ Delete PFX file from disk
+```
+
+**Why no trust store import?** The cert is self-signed (`CN=Sev_CodeHQ`).
+On GitHub-hosted Windows runners, `Get-AuthenticodeSignature` can return
+`UnknownError` with an untrusted-root chain message even when `signtool`
+signed the file correctly. Importing the release PFX into `CurrentUser\Root`
+is intentionally avoided in CI because that trust-store write hung the
+`v1.5.7` recovery run on March 15, 2026. The workflow now verifies signer
+identity by thumbprint and accepts only the expected untrusted-root
+`UnknownError` case for that known self-signed certificate.
+
+**Certificate renewal:** When the cert expires (check `$cert.NotAfter`), generate
+a new PFX and re-run `set-github-secrets.ps1` — the script shows expiry date and
+warns if < 30 days remain.

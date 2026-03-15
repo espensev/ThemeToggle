@@ -152,7 +152,7 @@ jobs:
             exit 0
           }
 
-          Write-Error "$file signature status is $status: $statusMessage"
+          Write-Error ("{0} signature status is {1}: {2}" -f $file, $status, $statusMessage)
           exit 1
         shell: pwsh
 
