@@ -80,7 +80,6 @@ jobs:
         shell: pwsh
 
       - name: Materialize signing certificate
-        timeout-minutes: 5
         env:
           THEMETOGGLE_SIGN_PFX_BASE64: ${{ secrets.THEMETOGGLE_SIGN_PFX_BASE64 }}
           THEMETOGGLE_SIGN_PFX_PASSWORD: ${{ secrets.THEMETOGGLE_SIGN_PFX_PASSWORD }}
@@ -91,37 +90,7 @@ jobs:
 
           Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PATH=$pfxPath"
           Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PASSWORD=$env:THEMETOGGLE_SIGN_PFX_PASSWORD"
-
-          Write-Host "Loading signer certificate from PFX using an ephemeral key set..."
-          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
-            $pfxBytes, $env:THEMETOGGLE_SIGN_PFX_PASSWORD,
-            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
-          )
-
-          Write-Host "Exporting public certificate for trust-store import..."
-          $publicCertBytes = $cert.Export(
-            [System.Security.Cryptography.X509Certificates.X509ContentType]::Cert
-          )
-          $publicCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
-            [byte[]]$publicCertBytes
-          )
-
-          # Import the signing cert into the runner's trusted root store so
-          # Get-AuthenticodeSignature returns "Valid" instead of "UnknownError"
-          # for self-signed certificates.
-          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
-            "Root", "CurrentUser"
-          )
-          try {
-            $store.Open("ReadWrite")
-            $store.Add($publicCert)
-          }
-          finally {
-            if ($store) { $store.Close() }
-            if ($publicCert) { $publicCert.Dispose() }
-            if ($cert) { $cert.Dispose() }
-          }
-          Write-Host "Signing certificate imported into CurrentUser\Root trust store."
+          Write-Host "Signing certificate materialized for signtool."
         shell: pwsh
 
       - name: Setup MSVC
@@ -143,30 +112,48 @@ jobs:
         run: |
           $file = "ThemeToggle.exe"
           $signature = Get-AuthenticodeSignature $file
-          if ($signature.Status -ne "Valid") {
-            Write-Error "$file signature status is $($signature.Status): $($signature.StatusMessage)"
-            exit 1
-          }
-
           if (-not $signature.SignerCertificate) {
-            Write-Error "$file has a valid status but no signer certificate metadata."
+            Write-Error "$file has no signer certificate metadata."
             exit 1
           }
 
+          $status = [string]$signature.Status
+          $statusMessage = [string]$signature.StatusMessage
           $actualThumbprint = $signature.SignerCertificate.Thumbprint
           Write-Host "$file signed by $($signature.SignerCertificate.Subject)"
           Write-Host "$file thumbprint: $actualThumbprint"
 
+          $thumbprintVerified = $false
           if ($env:EXPECTED_THUMBPRINT) {
             $expected = ($env:EXPECTED_THUMBPRINT -replace '\s', '').ToUpperInvariant()
             if ($actualThumbprint -ne $expected) {
               Write-Error "$file signed by unexpected certificate. Expected thumbprint: $expected, got: $actualThumbprint"
               exit 1
             }
+            $thumbprintVerified = $true
             Write-Host "$file certificate thumbprint verified."
           } else {
             Write-Warning "THEMETOGGLE_SIGN_CERT_THUMBPRINT secret not set — skipping signer identity check."
           }
+
+          if ($status -eq "Valid") {
+            Write-Host "$file signature status is Valid."
+            exit 0
+          }
+
+          $isExpectedSelfSignedTrustError = (
+            $status -eq "UnknownError" -and
+            $thumbprintVerified -and
+            $statusMessage -like "*root certificate which is not trusted by the trust provider*"
+          )
+
+          if ($isExpectedSelfSignedTrustError) {
+            Write-Warning "$file chain ends in an untrusted root on this runner, but the signer thumbprint matches the expected self-signed certificate."
+            exit 0
+          }
+
+          Write-Error "$file signature status is $status: $statusMessage"
+          exit 1
         shell: pwsh
 
       - name: Calculate SHA256 hashes
@@ -254,25 +241,10 @@ jobs:
 
       - name: Remove signing certificate
         if: always()
-        env:
-          THEMETOGGLE_SIGN_CERT_THUMBPRINT: ${{ secrets.THEMETOGGLE_SIGN_CERT_THUMBPRINT }}
         run: |
           # Remove PFX file from disk
           if ($env:THEMETOGGLE_SIGN_PFX_PATH -and (Test-Path $env:THEMETOGGLE_SIGN_PFX_PATH)) {
             Remove-Item $env:THEMETOGGLE_SIGN_PFX_PATH -Force
             Write-Host "Removed PFX file."
-          }
-
-          # Remove cert from trust store
-          if ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT) {
-            $thumbprint = ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT -replace '\s', '')
-            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
-              "Root", "CurrentUser"
-            )
-            $store.Open("ReadWrite")
-            $certs = $store.Certificates | Where-Object { $_.Thumbprint -eq $thumbprint }
-            foreach ($c in $certs) { $store.Remove($c) }
-            $store.Close()
-            Write-Host "Removed certificate from CurrentUser\Root trust store."
           }
         shell: pwsh
