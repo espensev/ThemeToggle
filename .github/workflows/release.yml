@@ -80,6 +80,7 @@ jobs:
         shell: pwsh
 
       - name: Materialize signing certificate
+        timeout-minutes: 5
         env:
           THEMETOGGLE_SIGN_PFX_BASE64: ${{ secrets.THEMETOGGLE_SIGN_PFX_BASE64 }}
           THEMETOGGLE_SIGN_PFX_PASSWORD: ${{ secrets.THEMETOGGLE_SIGN_PFX_PASSWORD }}
@@ -88,24 +89,39 @@ jobs:
           $pfxBytes = [System.Convert]::FromBase64String(($env:THEMETOGGLE_SIGN_PFX_BASE64 -replace '\s', ''))
           [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
 
+          Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PATH=$pfxPath"
+          Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PASSWORD=$env:THEMETOGGLE_SIGN_PFX_PASSWORD"
+
+          Write-Host "Loading signer certificate from PFX using an ephemeral key set..."
+          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+            $pfxBytes, $env:THEMETOGGLE_SIGN_PFX_PASSWORD,
+            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+          )
+
+          Write-Host "Exporting public certificate for trust-store import..."
+          $publicCertBytes = $cert.Export(
+            [System.Security.Cryptography.X509Certificates.X509ContentType]::Cert
+          )
+          $publicCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+            $publicCertBytes
+          )
+
           # Import the signing cert into the runner's trusted root store so
           # Get-AuthenticodeSignature returns "Valid" instead of "UnknownError"
           # for self-signed certificates.
-          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
-            $pfxPath, $env:THEMETOGGLE_SIGN_PFX_PASSWORD,
-            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet
-          )
           $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
             "Root", "CurrentUser"
           )
-          $store.Open("ReadWrite")
-          $store.Add($cert)
-          $store.Close()
-          $cert.Dispose()
+          try {
+            $store.Open("ReadWrite")
+            $store.Add($publicCert)
+          }
+          finally {
+            if ($store) { $store.Close() }
+            if ($publicCert) { $publicCert.Dispose() }
+            if ($cert) { $cert.Dispose() }
+          }
           Write-Host "Signing certificate imported into CurrentUser\Root trust store."
-
-          Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PATH=$pfxPath"
-          Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PASSWORD=$env:THEMETOGGLE_SIGN_PFX_PASSWORD"
         shell: pwsh
 
       - name: Setup MSVC
