@@ -102,8 +102,8 @@ jobs:
           $publicCertBytes = $cert.Export(
             [System.Security.Cryptography.X509Certificates.X509ContentType]::Cert
           )
-          $publicCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
-            $publicCertBytes
+          $publicCert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+            [byte[]]$publicCertBytes
           )
 
           # Import the signing cert into the runner's trusted root store so
