@@ -6,6 +6,8 @@ Newest entry at the top.
 
 ## Unreleased
 
+- Documented the March 15, 2026 `v1.5.7` release recovery: importing the self-signed release certificate into `CurrentUser\Root` hung GitHub's Windows runner, so CI verification now relies on signer thumbprint matching and explicitly allows the expected untrusted-root `UnknownError` case instead of mutating the trust store.
+
 ---
 
 ## 1.5.6 — Signed Release & Wrapper Packaging (2026-03-15)

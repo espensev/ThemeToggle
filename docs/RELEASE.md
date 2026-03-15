@@ -105,3 +105,14 @@ Keep the manifest schema headers and `ManifestVersion` on the last version that 
 **Token issues** — Use a classic PAT with `public_repo` scope. The PAT owner must have forked `microsoft/winget-pkgs`. `WINGET_GITHUB_TOKEN` must be set as a repo secret.
 
 **Schema header warnings / `winget validate` failure** — If `winget validate --manifest winget` reports schema header URL warnings or fails immediately after a schema bump, revert the manifest header URLs and `ManifestVersion` fields to the last validated repo version (`1.10.0` currently) and rerun validation before publishing.
+
+**Self-signed CI signing verification** — On GitHub-hosted Windows runners, `Get-AuthenticodeSignature` can return `UnknownError` with the message `A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider.` even when `signtool` signed the file correctly with the expected self-signed cert. Do not try to work around that by importing the release PFX into `CurrentUser\Root` in CI; during the `v1.5.7` release recovery on March 15, 2026, that trust-store write hung the `Materialize signing certificate` step until GitHub cancelled the job at the 6-hour limit.
+
+The release workflow now keeps CI signing verification non-mutating:
+
+- materialize the PFX only so `signtool` can sign the build
+- verify the signer certificate thumbprint against `THEMETOGGLE_SIGN_CERT_THUMBPRINT`
+- accept `Valid` signatures normally
+- also accept `UnknownError` only when the signer thumbprint matches and the status message is the expected untrusted-root chain error
+
+That preserves strong signer identity checks without modifying the hosted runner trust store.
