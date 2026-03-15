@@ -12,12 +12,42 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
-exePath = fso.BuildPath(scriptDir, "ThemeToggle.exe")
+exePath = ResolveExePath(fso, scriptDir)
 
-If fso.FileExists(exePath) Then
+If Len(exePath) > 0 Then
     shell.Run """" & exePath & """ /dark /quiet", 0, False
 End If
 
 Set shell = Nothing
 Set fso = Nothing
 WScript.Quit 0
+
+Function ResolveExePath(fileSystem, baseDir)
+    Dim candidate, parentDir, grandparentDir
+
+    candidate = fileSystem.BuildPath(baseDir, "ThemeToggle.exe")
+    If fileSystem.FileExists(candidate) Then
+        ResolveExePath = candidate
+        Exit Function
+    End If
+
+    parentDir = fileSystem.GetParentFolderName(baseDir)
+    If Len(parentDir) > 0 Then
+        candidate = fileSystem.BuildPath(parentDir, "ThemeToggle.exe")
+        If fileSystem.FileExists(candidate) Then
+            ResolveExePath = candidate
+            Exit Function
+        End If
+
+        grandparentDir = fileSystem.GetParentFolderName(parentDir)
+        If Len(grandparentDir) > 0 Then
+            candidate = fileSystem.BuildPath(grandparentDir, "ThemeToggle.exe")
+            If fileSystem.FileExists(candidate) Then
+                ResolveExePath = candidate
+                Exit Function
+            End If
+        End If
+    End If
+
+    ResolveExePath = ""
+End Function

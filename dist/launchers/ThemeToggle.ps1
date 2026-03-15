@@ -16,14 +16,35 @@ param(
     [switch]$Wait
 )
 
-# Get script directory and exe path
+# Get script directory and resolve the exe path for both:
+#   - portable zip layout: dist\launchers\ThemeToggle.ps1 -> ..\..\ThemeToggle.exe
+#   - same-folder layout:  ThemeToggle.ps1 next to ThemeToggle.exe
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$exePath = Join-Path $scriptDir "ThemeToggle.exe"
+
+function Resolve-ExePath {
+    param([string]$BaseDir)
+
+    $candidates = @(
+        (Join-Path $BaseDir "ThemeToggle.exe"),
+        (Join-Path (Split-Path -Parent $BaseDir) "ThemeToggle.exe"),
+        (Join-Path (Split-Path -Parent (Split-Path -Parent $BaseDir)) "ThemeToggle.exe")
+    )
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path $candidate)) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+$exePath = Resolve-ExePath -BaseDir $scriptDir
 
 # Verify executable exists
 if (-not (Test-Path $exePath)) {
     if ($ShowWindow) {
-        Write-Error "ThemeToggle.exe not found in: $scriptDir"
+        Write-Error "ThemeToggle.exe not found relative to: $scriptDir"
     }
     exit 1
 }
@@ -33,6 +54,7 @@ $ttArgs = @("/quiet")
 if ($Light) { $ttArgs += "/light" }
 elseif ($Dark) { $ttArgs += "/dark" }
 else { $ttArgs += "/toggle" }
+if ($Wait) { $ttArgs += "/exitcode" }
 
 # Create process start info for hidden window
 $psi = New-Object System.Diagnostics.ProcessStartInfo

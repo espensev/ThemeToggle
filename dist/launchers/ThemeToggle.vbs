@@ -13,17 +13,16 @@ Option Explicit
 ' Configuration
 Const TOGGLE_EXE = "ThemeToggle.exe"
 Const WINDOW_HIDDEN = 0
-Const WAIT_FOR_COMPLETION = True
 Const DONT_WAIT = False
 
 ' Get the directory where this VBS script is located
 Dim fso, scriptDir, exePath
 Set fso = CreateObject("Scripting.FileSystemObject")
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
-exePath = fso.BuildPath(scriptDir, TOGGLE_EXE)
+exePath = ResolveExePath(fso, scriptDir)
 
 ' Verify ThemeToggle.exe exists
-If Not fso.FileExists(exePath) Then
+If Len(exePath) = 0 Then
     ' Show error only if exe not found (critical failure)
     WScript.Echo "Error: ThemeToggle.exe not found in:" & vbCrLf & scriptDir
     WScript.Quit 1
@@ -43,3 +42,33 @@ Set fso = Nothing
 
 ' Exit silently
 WScript.Quit 0
+
+Function ResolveExePath(fileSystem, baseDir)
+    Dim candidate, parentDir, grandparentDir
+
+    candidate = fileSystem.BuildPath(baseDir, TOGGLE_EXE)
+    If fileSystem.FileExists(candidate) Then
+        ResolveExePath = candidate
+        Exit Function
+    End If
+
+    parentDir = fileSystem.GetParentFolderName(baseDir)
+    If Len(parentDir) > 0 Then
+        candidate = fileSystem.BuildPath(parentDir, TOGGLE_EXE)
+        If fileSystem.FileExists(candidate) Then
+            ResolveExePath = candidate
+            Exit Function
+        End If
+
+        grandparentDir = fileSystem.GetParentFolderName(parentDir)
+        If Len(grandparentDir) > 0 Then
+            candidate = fileSystem.BuildPath(grandparentDir, TOGGLE_EXE)
+            If fileSystem.FileExists(candidate) Then
+                ResolveExePath = candidate
+                Exit Function
+            End If
+        End If
+    End If
+
+    ResolveExePath = ""
+End Function

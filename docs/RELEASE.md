@@ -21,6 +21,7 @@ git push origin v1.6.0
 The pipeline builds all artifacts, calculates SHA256 hashes, creates a GitHub Release, and triggers the WinGet publish workflow. The Release workflow verifies that the `VERSION` file matches the tag.
 It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built installer and portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
 Tags that are not reachable from `main` are rejected by the release workflow.
+Code signing is required in CI. The workflow fails unless the repository secrets `THEMETOGGLE_SIGN_PFX_BASE64` and `THEMETOGGLE_SIGN_PFX_PASSWORD` are set.
 
 ## Manual release
 
@@ -48,6 +49,23 @@ Credential options (set one):
 | `PFX_PATH` / `PFX_PASS` | Fallback aliases |
 
 Optional: `THEMETOGGLE_SIGN_TIMESTAMP_URL`, `THEMETOGGLE_SIGN_DESCRIPTION`. See `tools/signing/README.md`.
+
+### GitHub Actions signing setup
+
+Add these repository secrets before pushing a release tag:
+
+| Secret | Description |
+|--------|-------------|
+| `THEMETOGGLE_SIGN_PFX_BASE64` | Base64-encoded `.pfx` contents |
+| `THEMETOGGLE_SIGN_PFX_PASSWORD` | Password for that `.pfx` |
+
+Generate the base64 payload from a local PFX file with PowerShell:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\cert.pfx"))
+```
+
+The release workflow writes that certificate to the runner temp directory, signs both EXEs, and fails if either Authenticode signature is missing or invalid.
 
 ## WinGet publishing
 

@@ -40,3 +40,20 @@ Fallback env vars (`PFX_PATH` / `PFX_PASS`) are also accepted.
 setx THEMETOGGLE_SIGN_TIMESTAMP_URL "http://timestamp.digicert.com"
 setx THEMETOGGLE_SIGN_DESCRIPTION "ThemeToggle"
 ```
+
+## GitHub Actions release signing
+
+Tagged releases now require repository secrets for signing:
+
+```
+THEMETOGGLE_SIGN_PFX_BASE64
+THEMETOGGLE_SIGN_PFX_PASSWORD
+```
+
+Create the base64 value from your PFX file:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\cert.pfx"))
+```
+
+The release workflow restores that PFX into the runner temp directory, sets `THEMETOGGLE_SIGN_PFX_PATH` and `THEMETOGGLE_SIGN_PFX_PASSWORD`, signs the EXE and installer, and then verifies both Authenticode signatures before publishing the GitHub Release.

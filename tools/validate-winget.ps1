@@ -135,16 +135,12 @@ if ($installerYaml -match 'REPLACE_WITH_') {
 Ok "No placeholder values found in installer manifest"
 
 $releaseBase = "https://github.com/$RepoSlug/releases/download/v$Version"
-$expectedInstallerUrl = "$releaseBase/ThemeToggle-Setup-$Version.exe"
 $expectedPortableUrl = "$releaseBase/ThemeToggle-Portable.zip"
 
-if ($installerYaml -notmatch [regex]::Escape($expectedInstallerUrl)) {
-    Fail "Missing expected installer URL: $expectedInstallerUrl"
-}
 if ($installerYaml -notmatch [regex]::Escape($expectedPortableUrl)) {
     Fail "Missing expected portable URL: $expectedPortableUrl"
 }
-Ok "Installer and portable URLs match version/repo"
+Ok "Portable URL matches version/repo"
 
 if ($installerYaml -notmatch "(?m)^\s*InstallerType:\s*zip\s*$") {
     Fail "Portable installer entry is missing (InstallerType: zip)."
@@ -156,8 +152,8 @@ if ($installerYaml -notmatch "(?m)^\s*PortableCommandAlias:\s*ThemeToggle\s*$") 
 Ok "Portable installer shape is present"
 
 $shaLines = [regex]::Matches($installerYaml, '(?m)^\s*InstallerSha256:\s*(\S+)\s*$')
-if ($shaLines.Count -lt 2) {
-    Fail "Expected at least 2 InstallerSha256 entries (installer + portable). Found: $($shaLines.Count)"
+if ($shaLines.Count -lt 1) {
+    Fail "Expected at least 1 InstallerSha256 entry (portable). Found: $($shaLines.Count)"
 }
 
 foreach ($shaLine in $shaLines) {
@@ -169,42 +165,25 @@ foreach ($shaLine in $shaLines) {
 Ok "InstallerSha256 values are valid"
 
 $installerEntries = Get-ManifestInstallerEntries -InstallerManifestContent $installerYaml
-$expectedInstallerEntry = Get-ManifestInstallerEntryByUrl -Entries $installerEntries -Url $expectedInstallerUrl
 $expectedPortableEntry = Get-ManifestInstallerEntryByUrl -Entries $installerEntries -Url $expectedPortableUrl
 
-if (-not $expectedInstallerEntry) {
-    Fail "Could not find installer entry for expected URL: $expectedInstallerUrl"
-}
 if (-not $expectedPortableEntry) {
     Fail "Could not find portable entry for expected URL: $expectedPortableUrl"
 }
 
 if ($VerifyLocalArtifacts) {
-    $localArtifacts = @(
-        @{
-            Label = "Installer"
-            Path = Join-Path $repoRoot "ThemeToggle-Setup-$Version.exe"
-            ExpectedHash = $expectedInstallerEntry.Sha256
-        },
-        @{
-            Label = "Portable ZIP"
-            Path = Join-Path $repoRoot "ThemeToggle-Portable.zip"
-            ExpectedHash = $expectedPortableEntry.Sha256
-        }
-    )
+    $portablePath = Join-Path $repoRoot "ThemeToggle-Portable.zip"
 
-    foreach ($artifact in $localArtifacts) {
-        if (-not (Test-Path $artifact.Path)) {
-            Fail "$($artifact.Label) artifact not found: $($artifact.Path)"
-        }
-
-        $actualHash = (Get-FileHash -Path $artifact.Path -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($actualHash -ne $artifact.ExpectedHash) {
-            Fail "$($artifact.Label) SHA256 mismatch. Manifest: $($artifact.ExpectedHash) Local file: $actualHash"
-        }
+    if (-not (Test-Path $portablePath)) {
+        Fail "Portable ZIP artifact not found: $portablePath"
     }
 
-    Ok "Local artifact hashes match manifest values"
+    $actualHash = (Get-FileHash -Path $portablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualHash -ne $expectedPortableEntry.Sha256) {
+        Fail "Portable ZIP SHA256 mismatch. Manifest: $($expectedPortableEntry.Sha256) Local file: $actualHash"
+    }
+
+    Ok "Local artifact hash matches manifest value"
 }
 
 if ($VerifyGitHubReleaseDigests) {
@@ -237,26 +216,21 @@ if ($VerifyGitHubReleaseDigests) {
         }
     }
 
-    foreach ($entry in @(
-        @{ Label = "Installer"; ExpectedUrl = $expectedInstallerUrl; ExpectedHash = $expectedInstallerEntry.Sha256 },
-        @{ Label = "Portable ZIP"; ExpectedUrl = $expectedPortableUrl; ExpectedHash = $expectedPortableEntry.Sha256 }
-    )) {
-        if (-not $releaseAssetsByUrl.ContainsKey($entry.ExpectedUrl)) {
-            Fail "$($entry.Label) asset was not found on the published GitHub release: $($entry.ExpectedUrl)"
-        }
-
-        $digest = $releaseAssetsByUrl[$entry.ExpectedUrl]
-        if (-not $digest) {
-            Fail "GitHub release API did not return a digest for $($entry.Label): $($entry.ExpectedUrl)"
-        }
-
-        $releaseHash = ($digest -replace '^sha256:', '').ToLowerInvariant()
-        if ($releaseHash -ne $entry.ExpectedHash) {
-            Fail "$($entry.Label) release digest mismatch. Manifest: $($entry.ExpectedHash) GitHub release: $releaseHash"
-        }
+    if (-not $releaseAssetsByUrl.ContainsKey($expectedPortableUrl)) {
+        Fail "Portable ZIP asset was not found on the published GitHub release: $expectedPortableUrl"
     }
 
-    Ok "Published GitHub release digests match manifest values"
+    $digest = $releaseAssetsByUrl[$expectedPortableUrl]
+    if (-not $digest) {
+        Fail "GitHub release API did not return a digest for Portable ZIP: $expectedPortableUrl"
+    }
+
+    $releaseHash = ($digest -replace '^sha256:', '').ToLowerInvariant()
+    if ($releaseHash -ne $expectedPortableEntry.Sha256) {
+        Fail "Portable ZIP release digest mismatch. Manifest: $($expectedPortableEntry.Sha256) GitHub release: $releaseHash"
+    }
+
+    Ok "Published GitHub release digest matches manifest value"
 }
 
 if (-not $SkipWingetCli) {

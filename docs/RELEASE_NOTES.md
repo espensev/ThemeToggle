@@ -8,6 +8,14 @@ Newest entry at the top.
 
 ---
 
+## 1.5.6 — Signed Release & Wrapper Packaging (2026-03-15)
+
+- GitHub release builds now require signing secrets and verify Authenticode signatures before publishing artifacts.
+- Portable ZIPs now include the `dist\launchers` helper scripts again.
+- Wrapper scripts now resolve `ThemeToggle.exe` correctly from both the repo layout and the portable ZIP layout.
+
+---
+
 ## 1.5.5 — Silent Launch & Release Pipeline (2026-03-13)
 
 - Removed GUI dialogs from normal execution. Theme changes now stay silent even when launched without a console.
