@@ -110,6 +110,10 @@ function Try-SignFile {
 
     $signtool = Find-SignTool
     if (-not $signtool) {
+        if ($env:GITHUB_ACTIONS) {
+            Write-Err "signtool.exe not found in CI — cannot sign $(Split-Path $FilePath -Leaf)"
+            exit 1
+        }
         Write-Warn "signtool.exe not found — skipping signature for $(Split-Path $FilePath -Leaf)"
         return $false
     }
@@ -175,22 +179,13 @@ function Try-SignFile {
 function Update-WingetManifests {
     param([string]$Ver)
 
-    $installerFile = Get-ChildItem -Path $repoRoot -Filter "ThemeToggle-Setup-$Ver.exe" -ErrorAction SilentlyContinue |
-                     Select-Object -First 1
-    if (-not $installerFile) {
-        Write-Warn "Installer not found — skipping WinGet manifest update"
-        return
-    }
-
     $portablePath = Join-Path $repoRoot "ThemeToggle-Portable.zip"
     if (-not (Test-Path $portablePath)) {
         Write-Warn "Portable ZIP not found — skipping WinGet manifest update"
         return
     }
 
-    $installerSha256 = (Get-FileHash -Path $installerFile.FullName -Algorithm SHA256).Hash
     $portableSha256 = (Get-FileHash -Path $portablePath -Algorithm SHA256).Hash
-    Write-Host "  Installer SHA256: $installerSha256" -ForegroundColor DarkGray
     Write-Host "  Portable SHA256 : $portableSha256" -ForegroundColor DarkGray
 
     # Installer manifest
@@ -202,32 +197,20 @@ function Update-WingetManifests {
 
     $content = Get-Content $manifestPath -Raw
 
-    # Determine GUID
-    if ($content -match "ProductCode:\s*'\{([A-F0-9\-]{36})\}'") {
-        $productGuid = "{$($Matches[1])}"
-    }
-    elseif ($content -match "ProductCode:\s*'\{REPLACE_WITH_PRODUCT_GUID\}'") {
-        $productGuid = "{$([guid]::NewGuid().ToString().ToUpper())}"
-    }
-    else {
-        $productGuid = "{$([guid]::NewGuid().ToString().ToUpper())}"
-    }
-
     $repoSlug = $env:GITHUB_REPOSITORY
     if (-not $repoSlug) {
         $repoSlug = "espensev/ThemeToggle"
     }
 
     $releaseBase = "https://github.com/$repoSlug/releases/download/v$Ver"
-    $installerUrl = "$releaseBase/ThemeToggle-Setup-$Ver.exe"
     $portableUrl = "$releaseBase/ThemeToggle-Portable.zip"
 
-    # Replace line-by-line to avoid PowerShell closure scoping issues with [regex]::Replace
+    # Replace line-by-line
     $lines = $content -split "`n"
     $urlIndex = 0
     $shaIndex = 0
-    $urlValues = @($installerUrl, $portableUrl)
-    $shaValues = @($installerSha256, $portableSha256)
+    $urlValues = @($portableUrl)
+    $shaValues = @($portableSha256)
 
     for ($j = 0; $j -lt $lines.Count; $j++) {
         if ($lines[$j] -match '^(\s*InstallerUrl:\s*)\S') {
@@ -247,11 +230,8 @@ function Update-WingetManifests {
     $content = $lines -join "`n"
 
     if ($urlIndex -lt $urlValues.Count -or $shaIndex -lt $shaValues.Count) {
-        Write-Warn "Installer manifest did not contain the expected installer and portable entries."
+        Write-Warn "Installer manifest did not contain expected portable entry."
     }
-
-    # Update ProductCode placeholder
-    $content = $content -replace "ProductCode:\s*'\{REPLACE_WITH_PRODUCT_GUID\}'", "ProductCode: '$productGuid'"
 
     # Update version
     $content = $content -replace '(?m)^(\s*PackageVersion:\s*).+$', ('${1}' + $Ver)
@@ -333,7 +313,7 @@ if ($Version) {
         Write-Host "  Would run: tools\bump-version.ps1 -Version $Version"
     } else {
         & "$repoRoot\tools\bump-version.ps1" -Version $Version
-        if ($LASTEXITCODE -ne 0) {
+        if (-not $?) {
             Write-Err "bump-version.ps1 failed"
             exit 1
         }
@@ -426,8 +406,18 @@ if ($DryRun) {
 # ============================================================================
 Write-Step "5/10" "Signing ThemeToggle.exe"
 
-if ($NoSign -or -not (Test-SigningConfigured)) {
-    Write-Warn "Signing skipped"
+if ($NoSign) {
+    if ($env:GITHUB_ACTIONS) {
+        Write-Err "-NoSign must not be used in CI"
+        exit 1
+    }
+    Write-Warn "Signing skipped (-NoSign)"
+} elseif (-not (Test-SigningConfigured)) {
+    if ($env:GITHUB_ACTIONS) {
+        Write-Err "No signing credentials configured in CI — set THEMETOGGLE_SIGN_PFX_PATH or THEMETOGGLE_SIGN_CERT_THUMBPRINT"
+        exit 1
+    }
+    Write-Warn "Signing skipped (no credentials configured)"
 } elseif ($DryRun) {
     Write-Host "  Would sign: ThemeToggle.exe"
 } else {
@@ -483,8 +473,18 @@ Write-Step "7/10" "Signing installer"
 
 if ($skipInstaller) {
     Write-Warn "Skipped (no installer)"
-} elseif ($NoSign -or -not (Test-SigningConfigured)) {
-    Write-Warn "Signing skipped"
+} elseif ($NoSign) {
+    if ($env:GITHUB_ACTIONS) {
+        Write-Err "-NoSign must not be used in CI"
+        exit 1
+    }
+    Write-Warn "Signing skipped (-NoSign)"
+} elseif (-not (Test-SigningConfigured)) {
+    if ($env:GITHUB_ACTIONS) {
+        Write-Err "No signing credentials configured in CI — set THEMETOGGLE_SIGN_PFX_PATH or THEMETOGGLE_SIGN_CERT_THUMBPRINT"
+        exit 1
+    }
+    Write-Warn "Signing skipped (no credentials configured)"
 } elseif ($DryRun) {
     Write-Host "  Would sign: ThemeToggle-Setup-$currentVersion.exe"
 } else {
@@ -512,6 +512,7 @@ if ($NoZip) {
     if (Test-Path $deployDir) { Remove-Item $deployDir -Recurse -Force }
     New-Item -ItemType Directory -Path $deployDir -Force | Out-Null
     New-Item -ItemType Directory -Path "$deployDir\Resources" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$deployDir\dist\launchers" -Force | Out-Null
 
     Copy-Item "$repoRoot\ThemeToggle.exe"              $deployDir
     Copy-Item "$repoRoot\LICENSE.txt"                   $deployDir
@@ -519,6 +520,7 @@ if ($NoZip) {
     Copy-Item "$repoRoot\setup.bat"                     $deployDir
     Copy-Item "$repoRoot\uninstall.bat"                 $deployDir
     Copy-Item "$repoRoot\Resources\ThemeToggle.ico"     "$deployDir\Resources\"
+    Copy-Item "$repoRoot\dist\launchers\*"              "$deployDir\dist\launchers\"
 
     $zipPath = Join-Path $repoRoot "ThemeToggle-Portable.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
@@ -536,8 +538,6 @@ if ($NoWinget) {
     Write-Warn "WinGet update skipped (-NoWinget)"
 } elseif ($NoZip) {
     Write-Warn "WinGet update skipped (no portable ZIP)"
-} elseif ($skipInstaller) {
-    Write-Warn "WinGet update skipped (no installer)"
 } elseif ($DryRun) {
     Write-Host "  Would update winget manifests for v$currentVersion"
 } else {

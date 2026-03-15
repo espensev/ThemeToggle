@@ -63,6 +63,35 @@ jobs:
           echo "Version verified: $actual"
         shell: pwsh
 
+      - name: Require signing secrets
+        env:
+          THEMETOGGLE_SIGN_PFX_BASE64: ${{ secrets.THEMETOGGLE_SIGN_PFX_BASE64 }}
+          THEMETOGGLE_SIGN_PFX_PASSWORD: ${{ secrets.THEMETOGGLE_SIGN_PFX_PASSWORD }}
+        run: |
+          if (-not $env:THEMETOGGLE_SIGN_PFX_BASE64) {
+            Write-Error "THEMETOGGLE_SIGN_PFX_BASE64 secret is not set."
+            exit 1
+          }
+
+          if (-not $env:THEMETOGGLE_SIGN_PFX_PASSWORD) {
+            Write-Error "THEMETOGGLE_SIGN_PFX_PASSWORD secret is not set."
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Materialize signing certificate
+        env:
+          THEMETOGGLE_SIGN_PFX_BASE64: ${{ secrets.THEMETOGGLE_SIGN_PFX_BASE64 }}
+          THEMETOGGLE_SIGN_PFX_PASSWORD: ${{ secrets.THEMETOGGLE_SIGN_PFX_PASSWORD }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "ThemeToggle-signing-cert.pfx"
+          $pfxBytes = [System.Convert]::FromBase64String(($env:THEMETOGGLE_SIGN_PFX_BASE64 -replace '\s', ''))
+          [System.IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+
+          Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PATH=$pfxPath"
+          Add-Content -Path $env:GITHUB_ENV -Value "THEMETOGGLE_SIGN_PFX_PASSWORD=$env:THEMETOGGLE_SIGN_PFX_PASSWORD"
+        shell: pwsh
+
       - name: Setup MSVC
         uses: microsoft/setup-msbuild@v2
 
@@ -79,25 +108,55 @@ jobs:
 
       - name: Build release artifacts
         run: |
-          .\tools\release\build-and-publish.ps1 -NoSign
+          .\tools\release\build-and-publish.ps1 -NoInstaller
+        shell: pwsh
+
+      - name: Verify Authenticode signatures
+        env:
+          EXPECTED_THUMBPRINT: ${{ secrets.THEMETOGGLE_SIGN_CERT_THUMBPRINT }}
+        run: |
+          $files = @(
+            "ThemeToggle.exe"
+          )
+
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature $file
+            if ($signature.Status -ne "Valid") {
+              Write-Error "$file signature status is $($signature.Status): $($signature.StatusMessage)"
+              exit 1
+            }
+
+            if (-not $signature.SignerCertificate) {
+              Write-Error "$file has a valid status but no signer certificate metadata."
+              exit 1
+            }
+
+            $actualThumbprint = $signature.SignerCertificate.Thumbprint
+            Write-Host "$file signed by $($signature.SignerCertificate.Subject)"
+            Write-Host "$file thumbprint: $actualThumbprint"
+
+            if ($env:EXPECTED_THUMBPRINT) {
+              $expected = ($env:EXPECTED_THUMBPRINT -replace '\s', '').ToUpperInvariant()
+              if ($actualThumbprint -ne $expected) {
+                Write-Error "$file signed by unexpected certificate. Expected thumbprint: $expected, got: $actualThumbprint"
+                exit 1
+              }
+              Write-Host "$file certificate thumbprint verified."
+            } else {
+              Write-Warning "THEMETOGGLE_SIGN_CERT_THUMBPRINT secret not set — skipping signer identity check."
+            }
+          }
         shell: pwsh
 
       - name: Calculate SHA256 hashes
         id: hashes
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $installer = "ThemeToggle-Setup-$version.exe"
-
           echo "SHA256 Hashes:"
           echo "=============="
 
           $exeHash = (Get-FileHash "ThemeToggle.exe" -Algorithm SHA256).Hash
           echo "ThemeToggle.exe: $exeHash"
           echo "EXE_SHA256=$exeHash" >> $env:GITHUB_OUTPUT
-
-          $installerHash = (Get-FileHash $installer -Algorithm SHA256).Hash
-          echo "${installer}: $installerHash"
-          echo "INSTALLER_SHA256=$installerHash" >> $env:GITHUB_OUTPUT
 
           $zipHash = (Get-FileHash "ThemeToggle-Portable.zip" -Algorithm SHA256).Hash
           echo "ThemeToggle-Portable.zip: $zipHash"
@@ -141,7 +200,6 @@ jobs:
           generate_release_notes: true
           files: |
             ThemeToggle.exe
-            ThemeToggle-Setup-${{ steps.version.outputs.VERSION }}.exe
             ThemeToggle-Portable.zip
           body: |
             ## Downloads
@@ -149,7 +207,6 @@ jobs:
             | File | Description | SHA256 |
             |------|-------------|--------|
             | `ThemeToggle.exe` | Standalone executable (~220 KB) | `${{ steps.hashes.outputs.EXE_SHA256 }}` |
-            | `ThemeToggle-Setup-${{ steps.version.outputs.VERSION }}.exe` | NSIS Installer | `${{ steps.hashes.outputs.INSTALLER_SHA256 }}` |
             | `ThemeToggle-Portable.zip` | Portable package | `${{ steps.hashes.outputs.ZIP_SHA256 }}` |
 
             ## Installation
@@ -160,7 +217,7 @@ jobs:
             ```
 
             ### Manual
-            Download and run the installer, or extract the portable ZIP.
+            Download the standalone EXE or extract the portable ZIP.
 
             ## Quick Start
             ```cmd
@@ -173,3 +230,11 @@ jobs:
             - Windows 10 (1809+) or Windows 11
             - No admin rights required
             - No dependencies
+
+      - name: Remove signing certificate
+        if: always()
+        run: |
+          if ($env:THEMETOGGLE_SIGN_PFX_PATH -and (Test-Path $env:THEMETOGGLE_SIGN_PFX_PATH)) {
+            Remove-Item $env:THEMETOGGLE_SIGN_PFX_PATH -Force
+          }
+        shell: pwsh
