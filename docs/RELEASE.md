@@ -58,6 +58,9 @@ Add these repository secrets before pushing a release tag:
 |--------|-------------|
 | `THEMETOGGLE_SIGN_PFX_BASE64` | Base64-encoded `.pfx` contents |
 | `THEMETOGGLE_SIGN_PFX_PASSWORD` | Password for that `.pfx` |
+| `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint for signer identity verification |
+
+For this repo, treat all three as the normal setup. The thumbprint secret is what lets CI distinguish the expected self-signed certificate from an unrelated signer when `Get-AuthenticodeSignature` reports the known untrusted-root `UnknownError` case.
 
 Generate the base64 payload from a local PFX file with PowerShell:
 
@@ -65,7 +68,13 @@ Generate the base64 payload from a local PFX file with PowerShell:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\cert.pfx"))
 ```
 
-The release workflow writes that certificate to the runner temp directory, signs both EXEs, and fails if either Authenticode signature is missing or invalid.
+Recommended helper for local setup:
+
+```powershell
+.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle
+```
+
+The current automated release writes that certificate to the runner temp directory, signs `ThemeToggle.exe`, packages that signed exe into `ThemeToggle-Portable.zip`, and fails if Authenticode verification does not match the expected signer rules.
 
 ## WinGet publishing
 
