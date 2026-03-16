@@ -84,6 +84,7 @@ gh workflow run "Publish to WinGet" -f version=1.6.0 -f dry_run=false
 ```
 
 Manual runs auto-discover the latest successful `Release` workflow for the requested tag and restore the uploaded `winget-manifests` artifact before validating or submitting anything. To force a specific snapshot, pass `release_run_id` as an additional workflow input.
+The publish workflow must trust the restored manifest snapshot as the source of truth for release asset URLs. As of March 15, 2026, CI releases publish `ThemeToggle.exe` and `ThemeToggle-Portable.zip`; WinGet validation must read `InstallerUrl` entries from `winget/SevIQ.ThemeToggle.installer.yaml` instead of assuming a `ThemeToggle-Setup-<version>.exe` asset exists.
 
 ### Manual submission
 
@@ -105,6 +106,8 @@ Keep the manifest schema headers and `ManifestVersion` on the last version that 
 **Token issues** — Use a classic PAT with `public_repo` scope. The PAT owner must have forked `microsoft/winget-pkgs`. `WINGET_GITHUB_TOKEN` must be set as a repo secret.
 
 **Schema header warnings / `winget validate` failure** — If `winget validate --manifest winget` reports schema header URL warnings or fails immediately after a schema bump, revert the manifest header URLs and `ManifestVersion` fields to the last validated repo version (`1.10.0` currently) and rerun validation before publishing.
+
+**Portable-only release / stale installer URL assumptions** — The March 15, 2026 `Publish to WinGet` run for `v1.5.7` failed because the workflow still probed `ThemeToggle-Setup-1.5.7.exe` even though the signed release only published `ThemeToggle.exe` and `ThemeToggle-Portable.zip`. Keep WinGet validation and submission manifest-driven: restore the `winget-manifests` artifact from the successful `Release` run, read the `InstallerUrl` values from `winget/SevIQ.ThemeToggle.installer.yaml`, and verify those exact URLs instead of reconstructing asset names in the workflow.
 
 **Self-signed CI signing verification** — On GitHub-hosted Windows runners, `Get-AuthenticodeSignature` can return `UnknownError` with the message `A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider.` even when `signtool` signed the file correctly with the expected self-signed cert. Do not try to work around that by importing the release PFX into `CurrentUser\Root` in CI; during the `v1.5.7` release recovery on March 15, 2026, that trust-store write hung the `Materialize signing certificate` step until GitHub cancelled the job at the 6-hour limit.
 
