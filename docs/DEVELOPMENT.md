@@ -43,6 +43,7 @@ See [RELEASE.md](RELEASE.md) for the full release workflow.
 | `tools\bump-version.ps1` | Update version across all project files |
 | `tools\validate.bat` | Pre-commit validation checks |
 | `tools\validate-winget.ps1` | Strict WinGet manifest/version/URL validation |
+| `tools\validate-release-workflow.ps1` | Enforce the canonical CI release + WinGet workflow |
 | `tools\bench.ps1` | Performance benchmarking |
 | `tools\export-bench.ps1` | Export benchmark results |
 

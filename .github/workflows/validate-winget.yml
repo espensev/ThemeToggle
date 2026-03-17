@@ -1,15 +1,19 @@
-# WinGet Manifest Validation
-# Validates winget manifests on changes
+# WinGet / Release Workflow Validation
+# Validates winget manifests and the canonical release flow on changes
 
-name: Validate WinGet Manifests
+name: Validate WinGet Release Flow
 
 on:
   push:
     paths:
       - 'winget/**'
       - 'tools/validate-winget.ps1'
+      - 'tools/validate-release-workflow.ps1'
       - 'tools/bump-version.ps1'
       - 'tools/release/**'
+      - 'docs/RELEASE.md'
+      - 'docs/DEVELOPMENT.md'
+      - '.github/RELEASE_TEMPLATE.md'
       - '.github/workflows/validate-winget.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/winget-publish.yml'
@@ -17,8 +21,12 @@ on:
     paths:
       - 'winget/**'
       - 'tools/validate-winget.ps1'
+      - 'tools/validate-release-workflow.ps1'
       - 'tools/bump-version.ps1'
       - 'tools/release/**'
+      - 'docs/RELEASE.md'
+      - 'docs/DEVELOPMENT.md'
+      - '.github/RELEASE_TEMPLATE.md'
       - '.github/workflows/validate-winget.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/winget-publish.yml'
@@ -35,4 +43,9 @@ jobs:
         run: |
           .\tools\validate-winget.ps1 `
             -RepoSlug "${{ github.repository }}"
+        shell: pwsh
+
+      - name: Validate release workflow invariants
+        run: |
+          .\tools\validate-release-workflow.ps1
         shell: pwsh

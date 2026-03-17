@@ -6,8 +6,9 @@
    ```powershell
    .\tools\bump-version.ps1 -Version 1.6.0
    ```
-2. Optionally add an entry to `docs/RELEASE_NOTES.md`.
-3. Commit on `main`.
+2. Refresh `winget/SevIQ.ThemeToggle.locale.en-US.yaml` `ReleaseNotes` so the heading and bullets describe this exact version.
+3. Optionally add an entry to `docs/RELEASE_NOTES.md`.
+4. Commit on `main`.
 
 ## Automated release (GitHub Actions)
 
@@ -22,6 +23,7 @@ The pipeline builds all artifacts, calculates SHA256 hashes, creates a GitHub Re
 It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built installer and portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
 Tags that are not reachable from `main` are rejected by the release workflow.
 Code signing is required in CI. The workflow fails unless the repository secrets `THEMETOGGLE_SIGN_PFX_BASE64` and `THEMETOGGLE_SIGN_PFX_PASSWORD` are set.
+The canonical workflow invariants are enforced by `tools\validate-release-workflow.ps1`, which runs in both `tools\validate.bat` and GitHub Actions.
 
 ## Manual release
 
@@ -94,6 +96,12 @@ gh workflow run "Publish to WinGet" -f version=1.6.0 -f dry_run=false
 
 Manual runs auto-discover the latest successful `Release` workflow for the requested tag and restore the uploaded `winget-manifests` artifact before validating or submitting anything. To force a specific snapshot, pass `release_run_id` as an additional workflow input.
 The publish workflow must trust the restored manifest snapshot as the source of truth for release asset URLs. As of March 15, 2026, CI releases publish `ThemeToggle.exe` and `ThemeToggle-Portable.zip`; WinGet validation must read `InstallerUrl` entries from `winget/SevIQ.ThemeToggle.installer.yaml` instead of assuming a `ThemeToggle-Setup-<version>.exe` asset exists.
+
+To verify that the repo still matches that policy after workflow or docs edits, run:
+
+```powershell
+.\tools\validate-release-workflow.ps1
+```
 
 ### Manual submission
 

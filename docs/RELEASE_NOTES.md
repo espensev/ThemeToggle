@@ -6,6 +6,12 @@ Newest entry at the top.
 
 ## Unreleased
 
+- No unreleased notes yet.
+
+---
+
+## 1.5.7 — Release Recovery & WinGet Publishing (2026-03-15)
+
 - Documented the March 15, 2026 `v1.5.7` release recovery: importing the self-signed release certificate into `CurrentUser\Root` hung GitHub's Windows runner, so CI verification now relies on signer thumbprint matching and explicitly allows the expected untrusted-root `UnknownError` case instead of mutating the trust store.
 - Fixed the WinGet publish workflow to validate and submit the exact asset URLs declared by the restored manifest snapshot instead of assuming a `ThemeToggle-Setup-<version>.exe` release asset still exists.
 - Documented the March 15, 2026 `v1.5.7` WinGet failure: the publish job was still hard-coded for the old installer filename even though the signed release had moved to `ThemeToggle.exe` plus `ThemeToggle-Portable.zip`.
