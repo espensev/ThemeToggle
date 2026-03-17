@@ -47,11 +47,11 @@ Tags:
 - portable
 - cli
 ReleaseNotes: |-
-  1.5.5 focuses on direct execution and release quality:
-  - Installer shortcuts and setup flows now launch ThemeToggle.exe directly
-  - GUI launches stay silent; /notify remains a backward-compatible no-op
-  - Release workflow now submits CI-generated WinGet manifests to avoid hash drift
-  - WinGet metadata and validation were updated for the new packaging flow
+  1.5.7 focuses on release recovery and WinGet publishing:
+  - CI signing verification now checks the expected signer thumbprint and tolerates the known self-signed runner trust error
+  - WinGet publish now restores the CI-generated manifest snapshot and validates the exact InstallerUrl assets from that snapshot
+  - Release validation stays manifest-driven for ThemeToggle.exe and ThemeToggle-Portable.zip
+  - Repository validation now enforces the canonical release and WinGet workflow
 
   Observed toggle duration on test systems remains around 10-15 ms.
 

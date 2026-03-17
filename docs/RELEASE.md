@@ -6,8 +6,9 @@
    ```powershell
    .\tools\bump-version.ps1 -Version 1.6.0
    ```
-2. Optionally add an entry to `docs/RELEASE_NOTES.md`.
-3. Commit on `main`.
+2. Refresh `winget/SevIQ.ThemeToggle.locale.en-US.yaml` `ReleaseNotes` so the heading and bullets describe this exact version.
+3. Optionally add an entry to `docs/RELEASE_NOTES.md`.
+4. Commit on `main`.
 
 ## Automated release (GitHub Actions)
 
@@ -22,6 +23,7 @@ The pipeline builds all artifacts, calculates SHA256 hashes, creates a GitHub Re
 It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built installer and portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
 Tags that are not reachable from `main` are rejected by the release workflow.
 Code signing is required in CI. The workflow fails unless the repository secrets `THEMETOGGLE_SIGN_PFX_BASE64` and `THEMETOGGLE_SIGN_PFX_PASSWORD` are set.
+The canonical workflow invariants are enforced by `tools\validate-release-workflow.ps1`, which runs in both `tools\validate.bat` and GitHub Actions.
 
 ## Manual release
 
@@ -58,6 +60,9 @@ Add these repository secrets before pushing a release tag:
 |--------|-------------|
 | `THEMETOGGLE_SIGN_PFX_BASE64` | Base64-encoded `.pfx` contents |
 | `THEMETOGGLE_SIGN_PFX_PASSWORD` | Password for that `.pfx` |
+| `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint for signer identity verification |
+
+For this repo, treat all three as the normal setup. The thumbprint secret is what lets CI distinguish the expected self-signed certificate from an unrelated signer when `Get-AuthenticodeSignature` reports the known untrusted-root `UnknownError` case.
 
 Generate the base64 payload from a local PFX file with PowerShell:
 
@@ -65,7 +70,13 @@ Generate the base64 payload from a local PFX file with PowerShell:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\cert.pfx"))
 ```
 
-The release workflow writes that certificate to the runner temp directory, signs both EXEs, and fails if either Authenticode signature is missing or invalid.
+Recommended helper for local setup:
+
+```powershell
+.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle
+```
+
+The current automated release writes that certificate to the runner temp directory, signs `ThemeToggle.exe`, packages that signed exe into `ThemeToggle-Portable.zip`, and fails if Authenticode verification does not match the expected signer rules.
 
 ## WinGet publishing
 
@@ -84,6 +95,13 @@ gh workflow run "Publish to WinGet" -f version=1.6.0 -f dry_run=false
 ```
 
 Manual runs auto-discover the latest successful `Release` workflow for the requested tag and restore the uploaded `winget-manifests` artifact before validating or submitting anything. To force a specific snapshot, pass `release_run_id` as an additional workflow input.
+The publish workflow must trust the restored manifest snapshot as the source of truth for release asset URLs. As of March 15, 2026, CI releases publish `ThemeToggle.exe` and `ThemeToggle-Portable.zip`; WinGet validation must read `InstallerUrl` entries from `winget/SevIQ.ThemeToggle.installer.yaml` instead of assuming a `ThemeToggle-Setup-<version>.exe` asset exists.
+
+To verify that the repo still matches that policy after workflow or docs edits, run:
+
+```powershell
+.\tools\validate-release-workflow.ps1
+```
 
 ### Manual submission
 
@@ -105,6 +123,8 @@ Keep the manifest schema headers and `ManifestVersion` on the last version that 
 **Token issues** — Use a classic PAT with `public_repo` scope. The PAT owner must have forked `microsoft/winget-pkgs`. `WINGET_GITHUB_TOKEN` must be set as a repo secret.
 
 **Schema header warnings / `winget validate` failure** — If `winget validate --manifest winget` reports schema header URL warnings or fails immediately after a schema bump, revert the manifest header URLs and `ManifestVersion` fields to the last validated repo version (`1.10.0` currently) and rerun validation before publishing.
+
+**Portable-only release / stale installer URL assumptions** — The March 15, 2026 `Publish to WinGet` run for `v1.5.7` failed because the workflow still probed `ThemeToggle-Setup-1.5.7.exe` even though the signed release only published `ThemeToggle.exe` and `ThemeToggle-Portable.zip`. Keep WinGet validation and submission manifest-driven: restore the `winget-manifests` artifact from the successful `Release` run, read the `InstallerUrl` values from `winget/SevIQ.ThemeToggle.installer.yaml`, and verify those exact URLs instead of reconstructing asset names in the workflow.
 
 **Self-signed CI signing verification** — On GitHub-hosted Windows runners, `Get-AuthenticodeSignature` can return `UnknownError` with the message `A certificate chain processed, but terminated in a root certificate which is not trusted by the trust provider.` even when `signtool` signed the file correctly with the expected self-signed cert. Do not try to work around that by importing the release PFX into `CurrentUser\Root` in CI; during the `v1.5.7` release recovery on March 15, 2026, that trust-store write hung the `Materialize signing certificate` step until GitHub cancelled the job at the 6-hour limit.
 

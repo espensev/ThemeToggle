@@ -14,8 +14,9 @@ One-line summary of the release focus.
 
 ## Downloads
 
+Current CI release artifacts:
+
 - `ThemeToggle.exe`: https://github.com/espensev/ThemeToggle/releases/download/vX.Y.Z/ThemeToggle.exe
-- `ThemeToggle-Setup-X.Y.Z.exe`: https://github.com/espensev/ThemeToggle/releases/download/vX.Y.Z/ThemeToggle-Setup-X.Y.Z.exe
 - `ThemeToggle-Portable.zip`: https://github.com/espensev/ThemeToggle/releases/download/vX.Y.Z/ThemeToggle-Portable.zip
 
 ---

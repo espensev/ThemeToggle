@@ -149,7 +149,59 @@ if ($installerYaml -notmatch "(?m)^\s*InstallerType:\s*zip\s*$") {
 if ($installerYaml -notmatch "(?m)^\s*PortableCommandAlias:\s*ThemeToggle\s*$") {
     Fail "Portable command alias is missing or incorrect (expected ThemeToggle)."
 }
-Ok "Portable installer shape is present"
+
+if ($installerYaml -notmatch "(?m)^InstallModes:\s*$") {
+    Fail "Installer manifest is missing the root InstallModes field."
+}
+
+foreach ($mode in @("interactive", "silent", "silentWithProgress")) {
+    if ($installerYaml -notmatch ("(?m)^-\s*" + [regex]::Escape($mode) + "\s*$")) {
+        Fail "Installer manifest is missing InstallModes entry: $mode"
+    }
+}
+
+if ($installerYaml -notmatch "(?m)^UpgradeBehavior:\s*install\s*$") {
+    Fail "Installer manifest is missing UpgradeBehavior: install."
+}
+
+if ($installerYaml -notmatch "(?m)^ElevationRequirement:\s*elevationProhibited\s*$") {
+    Fail "Installer manifest is missing ElevationRequirement: elevationProhibited."
+}
+
+if ($installerYaml -notmatch "(?m)^\s*NestedInstallerType:\s*portable\s*$") {
+    Fail "Portable installer entry is missing NestedInstallerType: portable."
+}
+
+if ($installerYaml -notmatch "(?m)^\s*-\s*RelativeFilePath:\s*ThemeToggle\.exe\s*$") {
+    Fail "Portable installer entry is missing RelativeFilePath: ThemeToggle.exe."
+}
+Ok "Portable installer metadata is complete"
+
+$releaseNotesUrl = "https://github.com/$RepoSlug/releases/tag/v$Version"
+if ($localeYaml -notmatch [regex]::Escape($releaseNotesUrl)) {
+    Fail "ReleaseNotesUrl does not match the expected tag URL: $releaseNotesUrl"
+}
+
+$releaseNotesMatch = [regex]::Match($localeYaml, '(?ms)^ReleaseNotes:\s*\|-\s*\r?\n(?<block>(?:\s{2}.*(?:\r?\n|$))+)', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+if (-not $releaseNotesMatch.Success) {
+    Fail "ReleaseNotes block was not found in locale manifest."
+}
+
+$releaseNotesLines = @(
+    $releaseNotesMatch.Groups["block"].Value -split '\r?\n' |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ }
+)
+
+if ($releaseNotesLines.Count -lt 1) {
+    Fail "ReleaseNotes block is empty."
+}
+
+$firstReleaseNotesLine = $releaseNotesLines[0]
+if ($firstReleaseNotesLine -notmatch ("^" + [regex]::Escape($Version) + "\b")) {
+    Fail "ReleaseNotes first line must begin with the current PackageVersion ($Version). Found: $firstReleaseNotesLine"
+}
+Ok "Locale metadata is version-aligned"
 
 $shaLines = [regex]::Matches($installerYaml, '(?m)^\s*InstallerSha256:\s*(\S+)\s*$')
 if ($shaLines.Count -lt 1) {

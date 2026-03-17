@@ -124,32 +124,47 @@ jobs:
           echo "Publishing version from release manifest snapshot: $version"
         shell: pwsh
 
-      - name: Verify release exists
-        id: release
+      - name: Verify release assets referenced by manifests
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
           $tag = "v$version"
-          $releaseBase = "https://github.com/${{ github.repository }}/releases/download/$tag"
-          $installerUrl = "$releaseBase/ThemeToggle-Setup-$version.exe"
-          $portableUrl = "$releaseBase/ThemeToggle-Portable.zip"
-          $releaseAssets = @($installerUrl, $portableUrl)
+          $installerManifestPath = "winget\SevIQ.ThemeToggle.installer.yaml"
+          $releaseBase = "https://github.com/${{ github.repository }}/releases/download/$tag/"
+
+          if (-not (Test-Path $installerManifestPath)) {
+            Write-Error "Installer manifest was not restored: $installerManifestPath"
+            exit 1
+          }
+
+          $releaseAssets = @(
+            [regex]::Matches((Get-Content $installerManifestPath -Raw), '(?m)^\s*InstallerUrl:\s*(\S+)\s*$') |
+              ForEach-Object { $_.Groups[1].Value } |
+              Select-Object -Unique
+          )
+
+          if ($releaseAssets.Count -lt 1) {
+            Write-Error "No InstallerUrl entries were found in $installerManifestPath."
+            exit 1
+          }
 
           echo "Checking release: $tag"
 
           foreach ($assetUrl in $releaseAssets) {
+            if (-not $assetUrl.StartsWith($releaseBase, [System.StringComparison]::OrdinalIgnoreCase)) {
+              Write-Error "Manifest asset URL does not point to the expected release tag ($tag): $assetUrl"
+              exit 1
+            }
+
             echo "Checking asset URL: $assetUrl"
             try {
               $response = Invoke-WebRequest -Uri $assetUrl -Method Head -UseBasicParsing -ErrorAction Stop
               echo "Release asset verified: HTTP $($response.StatusCode)"
             } catch {
               Write-Error "Release asset is not accessible: $assetUrl"
-              Write-Error "Make sure the release exists and contains both installer and portable zip."
+              Write-Error "Make sure the release exists and contains the assets referenced by the WinGet manifest snapshot."
               exit 1
             }
           }
-
-          echo "INSTALLER_URL=$installerUrl" >> $env:GITHUB_OUTPUT
-          echo "PORTABLE_URL=$portableUrl" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
       - name: Install wingetcreate
@@ -178,10 +193,13 @@ jobs:
           WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
-          $portableUrl = "${{ steps.release.outputs.PORTABLE_URL }}"
           $packageId = "SevIQ.ThemeToggle"
           $prTitle = "Update $packageId $version"
+          $manifestUrls = @(
+            [regex]::Matches((Get-Content "winget\SevIQ.ThemeToggle.installer.yaml" -Raw), '(?m)^\s*InstallerUrl:\s*(\S+)\s*$') |
+              ForEach-Object { $_.Groups[1].Value } |
+              Select-Object -Unique
+          )
 
           if (-not $env:WINGET_GITHUB_TOKEN) {
             Write-Error "WINGET_GITHUB_TOKEN secret is not set!"
@@ -193,8 +211,8 @@ jobs:
           echo "Submitting to WinGet..."
           echo "Package: $packageId"
           echo "Version: $version"
-          echo "Installer: $installerUrl"
-          echo "Portable: $portableUrl"
+          echo "Assets declared by manifests:"
+          $manifestUrls | ForEach-Object { echo "  $_" }
           echo "Manifest source: winget/"
 
           .\wingetcreate.exe submit `
@@ -220,14 +238,17 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           $version = "${{ steps.version.outputs.VERSION }}"
-          $installerUrl = "${{ steps.release.outputs.INSTALLER_URL }}"
-          $portableUrl = "${{ steps.release.outputs.PORTABLE_URL }}"
+          $manifestUrls = @(
+            [regex]::Matches((Get-Content "winget\SevIQ.ThemeToggle.installer.yaml" -Raw), '(?m)^\s*InstallerUrl:\s*(\S+)\s*$') |
+              ForEach-Object { $_.Groups[1].Value } |
+              Select-Object -Unique
+          )
 
           echo "DRY RUN - Validation only (no PR submission)."
           echo "Package: SevIQ.ThemeToggle"
           echo "Version: $version"
-          echo "Installer: $installerUrl"
-          echo "Portable: $portableUrl"
+          echo "Assets declared by manifests:"
+          $manifestUrls | ForEach-Object { echo "  $_" }
           echo ""
           echo "Validation succeeded in the previous step."
           echo "Manifests in winget/:"

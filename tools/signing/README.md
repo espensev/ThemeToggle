@@ -3,6 +3,18 @@
 Signing is handled by `tools/release/build-and-publish.ps1`. No standalone signing script is needed.
 Use PowerShell 7+ (`pwsh`) to run signing commands.
 
+## Personal checklist
+
+For this repo, the practical signing flow is:
+
+1. Keep the current PFX and password available locally.
+2. Run `.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle` whenever the certificate changes.
+3. Make sure all three secrets exist on GitHub: `THEMETOGGLE_SIGN_PFX_BASE64`, `THEMETOGGLE_SIGN_PFX_PASSWORD`, `THEMETOGGLE_SIGN_CERT_THUMBPRINT`.
+4. Tag from `main` only.
+5. Expect the automated release to publish a signed `ThemeToggle.exe` and a `ThemeToggle-Portable.zip` that contains that signed exe.
+
+If WinGet fails after a signed release succeeds, treat that as a manifest/publish problem first, not a signing problem.
+
 ## Quick usage
 
 ```powershell
@@ -43,7 +55,7 @@ setx THEMETOGGLE_SIGN_DESCRIPTION "ThemeToggle"
 
 ## GitHub Actions release signing
 
-Tagged releases require three repository secrets:
+Tagged releases should be configured with these repository secrets:
 
 | Secret | Description |
 |--------|-------------|
@@ -51,19 +63,21 @@ Tagged releases require three repository secrets:
 | `THEMETOGGLE_SIGN_PFX_PASSWORD` | PFX password |
 | `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint (for signer identity verification) |
 
+`THEMETOGGLE_SIGN_CERT_THUMBPRINT` is strongly recommended for this repo. The workflow can technically continue without it, but that weakens signer identity verification and is not the intended steady-state setup.
+
 ### Quick setup (recommended)
 
 Use the helper script to read your local PFX and push all three secrets at once:
 
 ```powershell
 # Reads PFX path + password from your env vars, extracts thumbprint, pushes to GitHub
-.\tools\signing\set-github-secrets.ps1
+.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle
 
 # Or specify explicitly
-.\tools\signing\set-github-secrets.ps1 -PfxPath "C:\path\to\cert.pfx"
+.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle -PfxPath "C:\path\to\cert.pfx"
 
 # Preview without changing anything
-.\tools\signing\set-github-secrets.ps1 -DryRun
+.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle -DryRun
 ```
 
 The script resolves credentials in this order:
@@ -118,8 +132,8 @@ YOU (one-time setup)                      GITHUB ACTIONS (every tagged release)
                                              ├─ BUILD + SIGN
                                              │   ├─ build-and-publish.ps1 -NoInstaller
                                              │   ├─ Compiles ThemeToggle.exe
-                                             │   ├─ Signs exe with signtool (reads PFX from env)
-                                             │   └─ Creates ThemeToggle-Portable.zip (contains signed exe)
+                                             │   ├─ Signs ThemeToggle.exe with signtool
+                                             │   └─ Creates ThemeToggle-Portable.zip (contains that signed exe)
                                              │
                                              ├─ VERIFY
                                              │   ├─ Get-AuthenticodeSignature
@@ -135,6 +149,8 @@ YOU (one-time setup)                      GITHUB ACTIONS (every tagged release)
                                                  └─ Delete PFX file from disk
 ```
 
+**Current release shape:** the GitHub Actions release flow does not publish the NSIS installer right now. The signed release artifacts are `ThemeToggle.exe` and `ThemeToggle-Portable.zip`.
+
 **Why no trust store import?** The cert is self-signed (`CN=Sev_CodeHQ`).
 On GitHub-hosted Windows runners, `Get-AuthenticodeSignature` can return
 `UnknownError` with an untrusted-root chain message even when `signtool`
@@ -143,6 +159,8 @@ is intentionally avoided in CI because that trust-store write hung the
 `v1.5.7` recovery run on March 15, 2026. The workflow now verifies signer
 identity by thumbprint and accepts only the expected untrusted-root
 `UnknownError` case for that known self-signed certificate.
+
+**Do not repeat the March 15, 2026 CI mistake:** do not try to "fix" self-signed validation on GitHub-hosted runners by importing the release certificate into the trust store. That hung the runner for hours during the `v1.5.7` recovery.
 
 **Certificate renewal:** When the cert expires (check `$cert.NotAfter`), generate
 a new PFX and re-run `set-github-secrets.ps1` — the script shows expiry date and
