@@ -54,7 +54,7 @@ HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
   AppsUseLightTheme     (DWORD)  0 = Dark, 1 = Light
 ```
 
-## Source layout
+## Repository layout
 
 | Path | Contents |
 |------|----------|
@@ -64,6 +64,11 @@ HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize
 | `src/UxThemeHelper.cpp` | Windows 11 uxtheme refresh helpers |
 | `include/` | Headers |
 | `Resources/` | Icon and manifest |
+| `dist/launchers/` | PowerShell and VBScript launchers bundled in the portable ZIP |
+| `winget/` | Local WinGet manifests for `SevIQ.ThemeToggle` |
+| `tools/` | Validation, benchmarking, versioning, signing, and release scripts |
+| `docs/` | User, development, release, and technical documentation |
+| `setup.nsi` | Optional NSIS installer definition for manual release builds |
 
 ## Windows 11 specifics
 

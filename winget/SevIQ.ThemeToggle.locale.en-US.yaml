@@ -28,7 +28,7 @@ Description: |-
   - Compatibility handling for apps that ignore standard theme broadcasts
   - Multi-monitor taskbar support
   - Windows 10 and Windows 11 support
-  - Installer and portable package variants
+  - Portable package distribution through WinGet
   - No runtime dependencies
 Moniker: themetoggle
 Tags:

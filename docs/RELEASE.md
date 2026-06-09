@@ -19,8 +19,8 @@ git tag v1.6.0
 git push origin v1.6.0
 ```
 
-The pipeline builds all artifacts, calculates SHA256 hashes, creates a GitHub Release, and triggers the WinGet publish workflow. The Release workflow verifies that the `VERSION` file matches the tag.
-It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built installer and portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
+The pipeline builds all published artifacts, calculates SHA256 hashes, creates a GitHub Release, and triggers the WinGet publish workflow. The Release workflow verifies that the `VERSION` file matches the tag.
+It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
 Tags that are not reachable from `main` are rejected by the release workflow.
 Code signing is required in CI. The workflow fails unless the repository secrets `THEMETOGGLE_SIGN_PFX_BASE64` and `THEMETOGGLE_SIGN_PFX_PASSWORD` are set.
 The canonical workflow invariants are enforced by `tools\validate-release-workflow.ps1`, which runs in both `tools\validate.bat` and GitHub Actions.
@@ -33,7 +33,7 @@ Run the unified build script:
 .\tools\release\build-and-publish.ps1
 ```
 
-This produces `ThemeToggle.exe`, the NSIS installer, and a portable ZIP, then updates WinGet manifests with the correct SHA256 hash. Use `-DryRun` to preview, or `-NoSign` / `-NoWinget` / `-NoInstaller` / `-NoZip` to skip individual steps.
+This produces `ThemeToggle.exe`, can produce the NSIS installer, and creates a portable ZIP, then updates WinGet manifests with the correct portable package SHA256 hash. Use `-DryRun` to preview, or `-NoSign` / `-NoWinget` / `-NoInstaller` / `-NoZip` to skip individual steps.
 
 Upload the artifacts to a GitHub Release tagged `v<version>`.
 
@@ -112,7 +112,7 @@ pwsh -File .\tools\validate-winget.ps1 -Version 1.6.0
 wingetcreate submit --prtitle "Update SevIQ.ThemeToggle 1.6.0" --token <PAT> winget
 ```
 
-`wingetcreate update` is only suitable when installer URL mapping matches the existing manifest shape. For this package (installer + portable ZIP), submitting the curated local manifests is the most reliable path.
+`wingetcreate update` is only suitable when installer URL mapping matches the existing manifest shape. For this package's zip-based portable installer, submitting the curated local manifests is the most reliable path.
 
 Keep the manifest schema headers and `ManifestVersion` on the last version that passes `winget validate --manifest winget` in GitHub Actions. Do not bump them just to match newer winget-pkgs checklist text. As of `2026-03-13`, the validated schema version in this repo is `1.10.0`.
 

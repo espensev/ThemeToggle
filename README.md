@@ -20,9 +20,11 @@ GUI launches are silent by default. The theme change itself is the only feedback
 winget install SevIQ.ThemeToggle
 ```
 
+WinGet installs the portable package and exposes the `ThemeToggle` command alias.
+
 ### Option 2: Manual
-1. Download `ThemeToggle.exe` from [Releases](https://github.com/espensev/ThemeToggle/releases)
-2. Run it directly (no installation required)
+1. Download `ThemeToggle-Portable.zip` or `ThemeToggle.exe` from [Releases](https://github.com/espensev/ThemeToggle/releases)
+2. Extract the portable ZIP or run the standalone executable directly
 
 ## Automation
 
@@ -41,12 +43,14 @@ schtasks /create /tn "Theme-Morning" /tr "\"C:\path\to\ThemeToggle.exe\" /light 
 schtasks /create /tn "Theme-Evening" /tr "\"C:\path\to\ThemeToggle.exe\" /dark /quiet" /sc daily /st 19:00
 ```
 
-### PowerShell
+### PowerShell launchers
 ```powershell
 dist\launchers\ThemeToggle.ps1           # Toggle
 dist\launchers\ThemeToggle.ps1 -Light    # Force light
 dist\launchers\ThemeToggle.ps1 -Dark     # Force dark
 ```
+
+These launchers are included in the source tree and portable ZIP. WinGet users can call the `ThemeToggle` alias directly.
 
 ## Command-Line Options
 

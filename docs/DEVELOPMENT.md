@@ -23,7 +23,7 @@ build.bat /sign
 
 ## Full release build
 
-`tools/release/build-and-publish.ps1` handles the complete pipeline - exe, installer, portable ZIP, signing, and WinGet manifest updates.
+`tools/release/build-and-publish.ps1` handles the release pipeline - exe, optional NSIS installer, portable ZIP, signing, and WinGet manifest updates.
 
 ```powershell
 .\tools\release\build-and-publish.ps1                    # build + package
