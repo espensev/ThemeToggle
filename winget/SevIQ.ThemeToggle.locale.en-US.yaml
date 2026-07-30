@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
 
 PackageIdentifier: SevIQ.ThemeToggle
-PackageVersion: 1.5.7
+PackageVersion: 1.6.0
 PackageLocale: en-US
 Publisher: SevIQ
 PublisherUrl: https://github.com/espensev
@@ -46,16 +46,17 @@ Tags:
 - portable
 - cli
 ReleaseNotes: |-
-  1.5.7 is a release reliability and packaging update:
-  - No CLI behavior changes
-  - GitHub release signing verification now checks the expected signer thumbprint and handles the known self-signed runner trust error
-  - WinGet submission now restores the CI-generated manifest snapshot and validates the exact published asset URLs
-  - Release validation now stays aligned with the published ThemeToggle.exe and ThemeToggle-Portable.zip artifacts
+  1.6.0 makes exit codes and theme-refresh behavior match measured reality:
+  - Exit code 20 (broadcast failure) is now meaningful; it was chronically returned on successful theme changes because internal per-window notifications always failed silently
+  - Faster switches: app nudges now run before the global broadcast, roughly halving in-process work on busy desktops
+  - The stubborn-app nudge list is slimmed to notifications that verifiably deliver (Explorer, dialogs, Chromium/Electron family, Firefox)
+  - /passthru now prints per-stage timing diagnostics
+  - No CLI syntax changes; scripts keying on exit codes now get a real signal
 
-  Observed toggle duration on test systems remains around 10-15 ms.
+  A switch completes in a few tens of milliseconds even on a busy desktop.
 
   See full changelog at: https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
-ReleaseNotesUrl: https://github.com/espensev/ThemeToggle/releases/tag/v1.5.7
+ReleaseNotesUrl: https://github.com/espensev/ThemeToggle/releases/tag/v1.6.0
 Documentations:
 - DocumentLabel: Quick Start Guide
   DocumentUrl: https://github.com/espensev/ThemeToggle#quick-start

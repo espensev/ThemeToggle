@@ -10,6 +10,19 @@ Newest entry at the top.
 
 ---
 
+## 1.6.0 — Honest Broadcasts (2026-07-30)
+
+- Removed per-window shell pokes and the Word/Terminal kick entries: Windows rejects targeted asynchronous sends of pointer-carrying messages (`ERROR_MESSAGE_SYNC_ONLY`), so these had failed on every run since 1.2.0. The global `HWND_BROADCAST` sequence — which does work and reaches all top-level windows, including secondary-monitor taskbars — is the authoritative signal.
+- Exit code 20 (`BroadcastFailed`) was chronically returned on every successful theme change because those doomed sends set the failure flag. It now reflects only the global broadcast sequence; kicks are best-effort and never fail the toggle.
+- Stubborn-app kick list slimmed to entries that verifiably deliver: File Explorer and common dialogs (`/kick=core`), plus Chromium/Electron-family and Firefox windows (`/kick=all`). `StubbornAppsKicked` now counts actual deliveries. New entries require a reproduced miss and a pointer-free message.
+- Kick now runs before the global broadcast: enumerating windows afterwards costs ~10x more while every window repaints (26-30 ms → 5-11 ms measured).
+- `/passthru` prints per-stage timings (`Timing*Ms`) for future performance work.
+- Removed the dead fast-target/enum-cache path in `BroadcastManager`.
+- Performance docs updated to measured numbers: ~25-45 ms in-process on a busy desktop, dominated by the global broadcast fan-out; the old 10-15 ms claim predated measurement.
+- Release pipeline: optional Microsoft Artifact Signing pilot lane (OIDC, additive, off by default), tagged releases require the pinned signing thumbprint, and the WinGet validator pins `ManifestVersion`/`ManifestType`.
+
+---
+
 ## 1.5.7 — Release Recovery & WinGet Publishing (2026-03-15)
 
 - Documented the March 15, 2026 `v1.5.7` release recovery: importing the self-signed release certificate into `CurrentUser\Root` hung GitHub's Windows runner, so CI verification now relies on signer thumbprint matching and explicitly allows the expected untrusted-root `UnknownError` case instead of mutating the trust store.
