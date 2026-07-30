@@ -109,6 +109,8 @@ jobs:
           arch: x64
 
       - name: Build release artifacts
+        env:
+          THEMETOGGLE_SIGN_CERT_THUMBPRINT: ${{ secrets.THEMETOGGLE_SIGN_CERT_THUMBPRINT }}
         run: |
           .\tools\release\build-and-publish.ps1 -NoInstaller
         shell: pwsh
