@@ -1,5 +1,10 @@
 # ThemeToggle
 
+[![WinGet version](https://img.shields.io/winget/v/SevIQ.ThemeToggle)](https://winstall.app/apps/SevIQ.ThemeToggle)
+[![GitHub release](https://img.shields.io/github/v/release/espensev/ThemeToggle)](https://github.com/espensev/ThemeToggle/releases/latest)
+[![Build](https://github.com/espensev/ThemeToggle/actions/workflows/build.yml/badge.svg)](https://github.com/espensev/ThemeToggle/actions/workflows/build.yml)
+[![License: Unlicense](https://img.shields.io/github/license/espensev/ThemeToggle)](https://unlicense.org/)
+
 A fast, lightweight Windows utility for switching between Light and Dark modes
 from the command line, shortcuts, or scheduled tasks. A switch completes in
 roughly 30-45 ms end-to-end on the test system's busy desktop, dominated by
