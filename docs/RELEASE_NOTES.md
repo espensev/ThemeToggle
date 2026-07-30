@@ -72,7 +72,7 @@ Execution time reduced from 110 ms to 10-15 ms.
 
 ### Stubborn-app kick
 
-Explicitly notifies apps that commonly miss theme changes: Explorer, common dialogs, Office, WPF apps, Terminal, Chrome, Firefox. Controlled via `/kick=...`.
+Explicitly notifies apps that commonly miss theme changes: Explorer, common dialogs, Word, Windows Terminal, Chromium/Electron-family, and Firefox windows. Controlled via `/kick=...`.
 
 ### Windows 11 APIs
 

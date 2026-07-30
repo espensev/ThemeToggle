@@ -5,10 +5,13 @@
 // Stubborn app definition
 struct StubbornApp {
     const wchar_t* className;
-    UINT extraMessage;
-    bool needsDirectPost;
-    bool prefixMatch;       // Prefix match
-    bool isCore;            // Core app class
+    UINT extraMessage;      // Must be pointer-free — the OS rejects targeted
+                            // async sends of pointer-carrying messages
+                            // (ERROR_MESSAGE_SYNC_ONLY)
+    bool needsDirectPost;   // Deliver via PostMessage (queue path) instead of
+                            // SendNotifyMessage
+    bool prefixMatch;       // Match className as prefix
+    bool isCore;            // Included in /kick=core (OS surfaces)
 };
 
 class BroadcastManager {
@@ -21,28 +24,27 @@ public:
     // Last run failure status
     bool HadBroadcastFailure() const { return hadFailure; }
 
+    // Last-run stage timings (milliseconds)
+    double LastDwmMs() const { return dwmMs; }
+    double LastGlobalMs() const { return globalMs; }
+    double LastKickMs() const { return kickMs; }
+
 private:
     bool isWin11;
-    ULONGLONG lastEnumTick = 0;
-    bool lastFoundTargets = false;
-    KickPolicy lastKickPolicy = KickPolicy::All;
+    double dwmMs = 0.0;
+    double globalMs = 0.0;
+    double kickMs = 0.0;
 
     // Broadcasts
-    void BroadcastSystemWindows(const wchar_t* message);
     void BroadcastGlobal();
     void NotifyDWM(bool isDark);
 
     // Stubborn apps
     int KickStubbornApps(KickPolicy kickPolicy);
-    bool HasFastTarget(KickPolicy kickPolicy);
     static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
-
-    // Helpers
-    void BroadcastToWindow(HWND hwnd, const wchar_t* message);
 
     // Enum context
     struct EnumWindowsContext {
-        BroadcastManager* manager = nullptr;
         int kickCount = 0;
         KickPolicy kickPolicy = KickPolicy::All;
     };
