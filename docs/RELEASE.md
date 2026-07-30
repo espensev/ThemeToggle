@@ -126,6 +126,8 @@ Manual runs auto-discover the latest successful `Release` workflow for the reque
 The publish workflow must trust the restored manifest snapshot as the source of truth for release asset URLs. As of March 15, 2026, CI releases publish `ThemeToggle.exe` and `ThemeToggle-Portable.zip`; WinGet validation must read `InstallerUrl` entries from `winget/SevIQ.ThemeToggle.installer.yaml` instead of assuming a `ThemeToggle-Setup-<version>.exe` asset exists.
 Do not announce WinGet availability in the GitHub release body until the external `microsoft/winget-pkgs` PR has merged; the GitHub release assets go live before `winget install SevIQ.ThemeToggle` does.
 
+Submission uses the `WINGET_GITHUB_TOKEN` repository secret (a GitHub PAT with the `public_repo` scope). PATs expire: when a publish run fails with `Token was invalid`, generate a new PAT and run `.\tools\release\set-winget-token.ps1` — it validates identity, scope, and expiry before storing the secret, and `-PublishVersion <x.y.z>` re-dispatches the publish afterwards. The publish workflow also verifies the token first thing, so a dead token fails in seconds instead of after manifest restore.
+
 To verify that the repo still matches that policy after workflow or docs edits, run:
 
 ```powershell

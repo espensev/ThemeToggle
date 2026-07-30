@@ -41,6 +41,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Verify WinGet token
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.dry_run }}
+        env:
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: |
+          if (-not $env:WINGET_GITHUB_TOKEN) {
+            Write-Error "WINGET_GITHUB_TOKEN secret is not set. Run tools\release\set-winget-token.ps1."
+            exit 1
+          }
+
+          $headers = @{
+            Authorization          = "Bearer $env:WINGET_GITHUB_TOKEN"
+            Accept                 = "application/vnd.github+json"
+            "User-Agent"           = "ThemeToggle-winget-publish"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+
+          try {
+            $resp = Invoke-WebRequest -Uri "https://api.github.com/user" -Headers $headers -UseBasicParsing -ErrorAction Stop
+          } catch {
+            Write-Error "WINGET_GITHUB_TOKEN is invalid or expired. Generate a new PAT (public_repo scope) and run tools\release\set-winget-token.ps1."
+            exit 1
+          }
+
+          $expiry = @($resp.Headers["github-authentication-token-expiration"]) -join ""
+          if ($expiry) {
+            Write-Host "WinGet token is valid; expires: $expiry"
+          } else {
+            Write-Host "WinGet token is valid."
+          }
+        shell: pwsh
+
       - name: Resolve release manifest source
         id: source
         env:

@@ -112,6 +112,7 @@ Assert-ContainsLiteral $wingetPublishWorkflow 'Copy-Item "generated-release\VERS
 Assert-ContainsLiteral $wingetPublishWorkflow 'Copy-Item "generated-release\winget\*.yaml" "winget\" -Force' "Publish to WinGet workflow must restore winget manifests from the manifest snapshot."
 Assert-ContainsLiteral $wingetPublishWorkflow 'InstallerUrl:\s*(\S+)\s*$' "Publish to WinGet workflow must read InstallerUrl values from the restored installer manifest."
 Assert-ContainsLiteral $wingetPublishWorkflow '-VerifyGitHubReleaseDigests' "Publish to WinGet workflow must validate restored manifests against published release digests."
+Assert-ContainsLiteral $wingetPublishWorkflow 'Verify WinGet token' "Publish to WinGet workflow must fail fast when the WinGet submission token is invalid or expired."
 Assert-ContainsLiteral $wingetPublishWorkflow '.\wingetcreate.exe submit' "Publish to WinGet workflow must submit curated local manifests with wingetcreate submit."
 Assert-NotContainsLiteral $wingetPublishWorkflow 'wingetcreate update' "Publish to WinGet workflow must not use wingetcreate update for this package."
 Assert-NotContainsLiteral $wingetPublishWorkflow 'ThemeToggle-Setup-' "Publish to WinGet workflow must not hard-code the legacy ThemeToggle-Setup-* asset name."
