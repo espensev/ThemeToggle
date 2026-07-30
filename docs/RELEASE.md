@@ -6,7 +6,7 @@
    ```powershell
    .\tools\bump-version.ps1 -Version 1.6.0
    ```
-2. Refresh `winget/SevIQ.ThemeToggle.locale.en-US.yaml` `ReleaseNotes` so the heading and bullets describe this exact version.
+2. Refresh `winget/SevIQ.ThemeToggle.locale.en-US.yaml` so `PackageVersion`, `ReleaseNotes`, and `ReleaseNotesUrl` describe this exact version while keeping `ManifestVersion` pinned to the last validated schema version.
 3. Optionally add an entry to `docs/RELEASE_NOTES.md`.
 4. Commit on `main`.
 
@@ -22,7 +22,7 @@ git push origin v1.6.0
 The pipeline builds all artifacts, calculates SHA256 hashes, creates a GitHub Release, and triggers the WinGet publish workflow. The Release workflow verifies that the `VERSION` file matches the tag.
 It also regenerates the `winget/` manifests from the CI-built artifacts, validates those manifests against the CI-built installer and portable ZIP, and uploads the generated manifest snapshot for the downstream WinGet publish job.
 Tags that are not reachable from `main` are rejected by the release workflow.
-Code signing is required in CI. The workflow fails unless the repository secrets `THEMETOGGLE_SIGN_PFX_BASE64` and `THEMETOGGLE_SIGN_PFX_PASSWORD` are set.
+Code signing is required in CI. The workflow fails unless the repository secrets `THEMETOGGLE_SIGN_PFX_BASE64`, `THEMETOGGLE_SIGN_PFX_PASSWORD`, and `THEMETOGGLE_SIGN_CERT_THUMBPRINT` are set.
 The canonical workflow invariants are enforced by `tools\validate-release-workflow.ps1`, which runs in both `tools\validate.bat` and GitHub Actions.
 
 ## Manual release
@@ -33,19 +33,19 @@ Run the unified build script:
 .\tools\release\build-and-publish.ps1
 ```
 
-This produces `ThemeToggle.exe`, the NSIS installer, and a portable ZIP, then updates WinGet manifests with the correct SHA256 hash. Use `-DryRun` to preview, or `-NoSign` / `-NoWinget` / `-NoInstaller` / `-NoZip` to skip individual steps.
+This produces `ThemeToggle.exe`, the NSIS installer, and a portable ZIP, then updates WinGet manifests with the correct SHA256 hash. Use `-DryRun` to preview. `-NoSign` is only for local non-release runs; tagged releases must stay signed. `-NoWinget` / `-NoInstaller` / `-NoZip` remain available for targeted local packaging work.
 
 Upload the artifacts to a GitHub Release tagged `v<version>`.
 
 ## Signing
 
-`tools/release/build-and-publish.ps1` signs automatically when credentials are available. Pass `-NoSign` to skip.
+Release artifacts must remain signed. `tools/release/build-and-publish.ps1` signs automatically when credentials are available. Use `-NoSign` only for local non-release packaging or debugging.
 
-Credential options (set one):
+Local ad-hoc signing credential options (set one):
 
 | Env var | Description |
 |---------|-------------|
-| `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint (preferred) |
+| `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint for local certificate-store signing |
 | `THEMETOGGLE_SIGN_PFX_PATH` | Path to PFX file |
 | `THEMETOGGLE_SIGN_PFX_PASSWORD` | PFX password (prompts if missing) |
 | `PFX_PATH` / `PFX_PASS` | Fallback aliases |
@@ -62,7 +62,7 @@ Add these repository secrets before pushing a release tag:
 | `THEMETOGGLE_SIGN_PFX_PASSWORD` | Password for that `.pfx` |
 | `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint for signer identity verification |
 
-For this repo, treat all three as the normal setup. The thumbprint secret is what lets CI distinguish the expected self-signed certificate from an unrelated signer when `Get-AuthenticodeSignature` reports the known untrusted-root `UnknownError` case.
+For this repo, all three are required. This is the required tagged-release path because it is the path that produced signed builds that install on enterprise-managed PCs. The thumbprint secret is what lets CI distinguish the expected self-signed certificate from an unrelated signer when `Get-AuthenticodeSignature` reports the known untrusted-root `UnknownError` case.
 
 Generate the base64 payload from a local PFX file with PowerShell:
 
@@ -70,13 +70,41 @@ Generate the base64 payload from a local PFX file with PowerShell:
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\cert.pfx"))
 ```
 
-Recommended helper for local setup:
+Use the helper to push the required secret set:
 
 ```powershell
 .\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle
 ```
 
-The current automated release writes that certificate to the runner temp directory, signs `ThemeToggle.exe`, packages that signed exe into `ThemeToggle-Portable.zip`, and fails if Authenticode verification does not match the expected signer rules.
+The current automated release writes that certificate to the runner temp directory, signs `ThemeToggle.exe`, packages that signed exe into `ThemeToggle-Portable.zip`, and fails if Authenticode verification does not match the expected signer rules. This is the only supported CI signing flow for this repo.
+
+### Optional Artifact Signing pilot lane
+
+The repo can also append a Microsoft Artifact Signing signature without replacing the preserved self-signed lane yet. This pilot path is opt-in and keeps the current self-signed release path as the mandatory fallback.
+
+To enable it, configure these GitHub repository settings:
+
+| Setting | Type | Purpose |
+|--------|------|---------|
+| `THEMETOGGLE_ARTIFACT_SIGNING_ENABLED` | Variable | Set to `true` to enable the pilot lane |
+| `THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT` | Variable | Artifact Signing endpoint URL |
+| `THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME` | Variable | Artifact Signing account name |
+| `THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME` | Variable | Artifact Signing certificate profile name |
+| `THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID` | Secret | Entra app / federated credential client ID for `azure/login` |
+| `THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID` | Secret | Entra tenant ID for `azure/login` |
+| `THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID` | Secret | Azure subscription ID for `azure/login` |
+
+The federated identity used by `azure/login` must have the Artifact Signing certificate profile signer role on the target certificate profile.
+
+When enabled, the release workflow:
+
+- keeps the current self-signed verification path intact
+- logs into Azure with OIDC via `azure/login`
+- appends an Artifact Signing signature to `ThemeToggle.exe`
+- rebuilds `ThemeToggle-Portable.zip` around that updated exe
+- refreshes the portable ZIP hash in `winget/SevIQ.ThemeToggle.installer.yaml` before validation and publish
+
+This pilot lane is intentionally additive. Do not remove the self-signed lane until the public-trust path has been proven on external unmanaged Windows machines and on the enterprise-managed machines that already accept the current flow.
 
 ## WinGet publishing
 
@@ -96,6 +124,7 @@ gh workflow run "Publish to WinGet" -f version=1.6.0 -f dry_run=false
 
 Manual runs auto-discover the latest successful `Release` workflow for the requested tag and restore the uploaded `winget-manifests` artifact before validating or submitting anything. To force a specific snapshot, pass `release_run_id` as an additional workflow input.
 The publish workflow must trust the restored manifest snapshot as the source of truth for release asset URLs. As of March 15, 2026, CI releases publish `ThemeToggle.exe` and `ThemeToggle-Portable.zip`; WinGet validation must read `InstallerUrl` entries from `winget/SevIQ.ThemeToggle.installer.yaml` instead of assuming a `ThemeToggle-Setup-<version>.exe` asset exists.
+Do not announce WinGet availability in the GitHub release body until the external `microsoft/winget-pkgs` PR has merged; the GitHub release assets go live before `winget install SevIQ.ThemeToggle` does.
 
 To verify that the repo still matches that policy after workflow or docs edits, run:
 
@@ -135,4 +164,4 @@ The release workflow now keeps CI signing verification non-mutating:
 - accept `Valid` signatures normally
 - also accept `UnknownError` only when the signer thumbprint matches and the status message is the expected untrusted-root chain error
 
-That preserves strong signer identity checks without modifying the hosted runner trust store.
+That preserves strong signer identity checks without modifying the hosted runner trust store, and it is the required release path for this repository.

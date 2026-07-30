@@ -1,6 +1,9 @@
 # ThemeToggle
 
-Windows theme switcher (typical 10-15ms execution on a test system).
+A fast, lightweight Windows utility for switching between Light and Dark modes
+from the command line, shortcuts, or scheduled tasks. A switch completes in
+roughly 30-45 ms end-to-end on the test system's busy desktop, dominated by
+the global theme broadcast to all windows.
 
 ## Quick Start
 
@@ -11,26 +14,34 @@ ThemeToggle.exe /dark     # Force dark mode
 ThemeToggle.exe /quiet    # Silent (for automation)
 ```
 
-GUI launches are silent by default. The theme change itself is the only feedback.
+GUI launches (shortcuts, Task Scheduler, double-click) are silent by default;
+the theme change is the only visible feedback. Console runs print a short
+status line unless `/quiet` is used.
 
 ## Installation
 
-### Option 1: WinGet (Recommended)
+### Install with WinGet
+
 ```cmd
 winget install SevIQ.ThemeToggle
 ```
 
-### Option 2: Manual
+WinGet availability can lag behind a GitHub release while the corresponding
+`microsoft/winget-pkgs` manifest PR is reviewed and merged.
+
+### Download a release
+
 1. Download `ThemeToggle.exe` from [Releases](https://github.com/espensev/ThemeToggle/releases)
-2. Run it directly (no installation required)
+2. Run it directly; no installation is required.
 
 ## Automation
 
 ### Hotkey Setup
-1. Create desktop shortcut to `ThemeToggle.exe`
-2. Right-click > Properties > Shortcut key
-3. Assign hotkey (e.g., `Ctrl+Alt+T`)
-4. Add `/quiet` to Target for silent operation
+
+1. Create a desktop shortcut to `ThemeToggle.exe`.
+2. Open **Properties** and select the **Shortcut key** field.
+3. Assign a shortcut such as `Ctrl+Alt+T`.
+4. Add `/quiet` to the target for silent operation.
 
 ### Scheduled Tasks (Sunrise/Sunset)
 ```cmd
@@ -82,16 +93,13 @@ All options also accept `-` or `--` prefixes.
 
 ## Development & Release Docs
 
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - build, tooling, benchmarking
-- [docs/RELEASE.md](docs/RELEASE.md) - release pipeline + WinGet
-- [docs/TECHNICAL.md](docs/TECHNICAL.md) - architecture + registry details
-- [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md) - deep technical changes
-
+- [Development guide](docs/DEVELOPMENT.md) — build, tooling, and benchmarking
+- [Release guide](docs/RELEASE.md) — release pipeline and WinGet
+- [Technical reference](docs/TECHNICAL.md) — architecture and registry behavior
+- [Release notes](docs/RELEASE_NOTES.md) — detailed technical changes
 
 ## License
 
-Public domain ([Unlicense](https://unlicense.org/)). Use freely in any project.
+Released into the public domain under the [Unlicense](https://unlicense.org/).
 
----
-
-**Issues:** [GitHub Issues](https://github.com/espensev/ThemeToggle/issues)
+Found a bug or have a suggestion? [Open an issue](https://github.com/espensev/ThemeToggle/issues).

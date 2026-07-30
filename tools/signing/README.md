@@ -5,13 +5,15 @@ Use PowerShell 7+ (`pwsh`) to run signing commands.
 
 ## Personal checklist
 
-For this repo, the practical signing flow is:
+For this repo, the required signing flow is:
 
 1. Keep the current PFX and password available locally.
 2. Run `.\tools\signing\set-github-secrets.ps1 -Repo espensev/ThemeToggle` whenever the certificate changes.
 3. Make sure all three secrets exist on GitHub: `THEMETOGGLE_SIGN_PFX_BASE64`, `THEMETOGGLE_SIGN_PFX_PASSWORD`, `THEMETOGGLE_SIGN_CERT_THUMBPRINT`.
 4. Tag from `main` only.
 5. Expect the automated release to publish a signed `ThemeToggle.exe` and a `ThemeToggle-Portable.zip` that contains that signed exe.
+
+This is the only supported tagged-release path. It is the flow that already produced builds accepted on enterprise-managed PCs, so do not describe weaker variants as equivalent.
 
 If WinGet fails after a signed release succeeds, treat that as a manifest/publish problem first, not a signing problem.
 
@@ -22,24 +24,17 @@ If WinGet fails after a signed release succeeds, treat that as a manifest/publis
 build.bat /sign                       # build + sign exe only
 ```
 
-## Credential methods (choose one)
+## Local credential methods (non-CI, choose one)
 
-### Certificate store (preferred)
+### Certificate store
 
-```
+```cmd
 setx THEMETOGGLE_SIGN_CERT_THUMBPRINT "THUMBPRINT"
-```
-
-Optional overrides:
-
-```
-setx THEMETOGGLE_SIGN_STORE "My"
-setx THEMETOGGLE_SIGN_STORE_LOCATION "currentuser"
 ```
 
 ### PFX file
 
-```
+```cmd
 setx THEMETOGGLE_SIGN_PFX_PATH "C:\path\to\cert.pfx"
 setx THEMETOGGLE_SIGN_PFX_PASSWORD "your-password"
 ```
@@ -48,14 +43,14 @@ Fallback env vars (`PFX_PATH` / `PFX_PASS`) are also accepted.
 
 ## Optional settings
 
-```
+```cmd
 setx THEMETOGGLE_SIGN_TIMESTAMP_URL "http://timestamp.digicert.com"
 setx THEMETOGGLE_SIGN_DESCRIPTION "ThemeToggle"
 ```
 
 ## GitHub Actions release signing
 
-Tagged releases should be configured with these repository secrets:
+Tagged releases must be configured with these repository secrets:
 
 | Secret | Description |
 |--------|-------------|
@@ -63,11 +58,40 @@ Tagged releases should be configured with these repository secrets:
 | `THEMETOGGLE_SIGN_PFX_PASSWORD` | PFX password |
 | `THEMETOGGLE_SIGN_CERT_THUMBPRINT` | Certificate thumbprint (for signer identity verification) |
 
-`THEMETOGGLE_SIGN_CERT_THUMBPRINT` is strongly recommended for this repo. The workflow can technically continue without it, but that weakens signer identity verification and is not the intended steady-state setup.
+`THEMETOGGLE_SIGN_CERT_THUMBPRINT` is required for this repo. Tagged releases must pin signer identity to the expected certificate thumbprint; allowing CI to continue without that check is not an acceptable release state here.
 
-### Quick setup (recommended)
+## Optional Artifact Signing pilot lane
 
-Use the helper script to read your local PFX and push all three secrets at once:
+The repo also supports an additive Microsoft Artifact Signing lane for public-trust experiments. This does not replace the preserved self-signed lane. The current self-signed path still runs first, still verifies the pinned thumbprint, and still remains the fallback until you intentionally promote the public-trust path later.
+
+Enable the pilot lane with these GitHub repository settings:
+
+| Setting | Type | Purpose |
+|--------|------|---------|
+| `THEMETOGGLE_ARTIFACT_SIGNING_ENABLED` | Variable | Set to `true` to enable the pilot lane |
+| `THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT` | Variable | Artifact Signing endpoint URL |
+| `THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME` | Variable | Artifact Signing account name |
+| `THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME` | Variable | Artifact Signing certificate profile name |
+| `THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID` | Secret | Entra app / federated credential client ID for `azure/login` |
+| `THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID` | Secret | Entra tenant ID for `azure/login` |
+| `THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID` | Secret | Azure subscription ID for `azure/login` |
+
+The federated identity used by `azure/login` must have the Artifact Signing certificate profile signer role on the target certificate profile.
+
+Workflow behavior when enabled:
+
+1. Build and self-sign the release exactly as today.
+2. Verify the self-signed cert thumbprint exactly as today.
+3. Log into Azure with OIDC via `azure/login`.
+4. Append an Artifact Signing signature to `ThemeToggle.exe`.
+5. Rebuild `ThemeToggle-Portable.zip` around that updated exe.
+6. Refresh the portable ZIP SHA in `winget/SevIQ.ThemeToggle.installer.yaml`.
+
+This gives you a public-trust pilot lane without deleting the signing path that already passed installs on enterprise-managed PCs.
+
+### Required repo setup
+
+Use the helper script to read your local PFX and push all three required secrets at once:
 
 ```powershell
 # Reads PFX path + password from your env vars, extracts thumbprint, pushes to GitHub
@@ -106,8 +130,10 @@ gh secret set THEMETOGGLE_SIGN_CERT_THUMBPRINT --repo owner/repo
 
 ### End-to-end signing flow
 
+This is the repo's required release path:
+
 ```
-YOU (one-time setup)                      GITHUB ACTIONS (every tagged release)
+USER (one-time setup)                      GITHUB ACTIONS (every tagged release)
 ─────────────────────                     ────────────────────────────────────
 
 1. Have PFX + password on your machine
@@ -158,7 +184,8 @@ signed the file correctly. Importing the release PFX into `CurrentUser\Root`
 is intentionally avoided in CI because that trust-store write hung the
 `v1.5.7` recovery run on March 15, 2026. The workflow now verifies signer
 identity by thumbprint and accepts only the expected untrusted-root
-`UnknownError` case for that known self-signed certificate.
+`UnknownError` case for that known self-signed certificate. Keep that exact
+flow: it is the one that passed installs on enterprise-managed PCs.
 
 **Do not repeat the March 15, 2026 CI mistake:** do not try to "fix" self-signed validation on GitHub-hosted runners by importing the release certificate into the trust store. That hung the runner for hours during the `v1.5.7` recovery.
 

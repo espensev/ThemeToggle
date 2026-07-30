@@ -15,7 +15,7 @@ build.bat
 
 Produces `ThemeToggle.exe` in the repo root.
 
-Optional signing after build (delegates to `tools/release/build-and-publish.ps1`):
+Local signed build after compile (delegates to `tools/release/build-and-publish.ps1`):
 
 ```cmd
 build.bat /sign
@@ -24,11 +24,12 @@ build.bat /sign
 ## Full release build
 
 `tools/release/build-and-publish.ps1` handles the complete pipeline - exe, installer, portable ZIP, signing, and WinGet manifest updates.
+Tagged releases must use the repository signing flow from [RELEASE.md](RELEASE.md): materialized release PFX plus pinned signer thumbprint verification in GitHub Actions.
 
 ```powershell
 .\tools\release\build-and-publish.ps1                    # build + package
 .\tools\release\build-and-publish.ps1 -Version 1.6.0    # bump version first
-.\tools\release\build-and-publish.ps1 -NoSign -NoWinget  # skip signing and WinGet
+.\tools\release\build-and-publish.ps1 -NoSign -NoWinget  # local packaging only; never for tagged releases
 .\tools\release\build-and-publish.ps1 -DryRun            # preview only
 ```
 
@@ -40,6 +41,7 @@ See [RELEASE.md](RELEASE.md) for the full release workflow.
 |--------|---------|
 | `build.bat` | Compile the executable (MSVC detection built in) |
 | `tools\release\build-and-publish.ps1` | Full release pipeline |
+| `tools\release\refresh-portable-package.ps1` | Repack portable ZIP + refresh WinGet SHA after post-build signing |
 | `tools\bump-version.ps1` | Update version across all project files |
 | `tools\validate.bat` | Pre-commit validation checks |
 | `tools\validate-winget.ps1` | Strict WinGet manifest/version/URL validation |

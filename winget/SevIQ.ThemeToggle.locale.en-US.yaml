@@ -16,19 +16,18 @@ Copyright: Public Domain
 ShortDescription: CLI Windows theme switcher for scripts, hotkeys, and scheduled tasks
 Description: |-
   ThemeToggle is a lightweight command-line utility for switching Windows
-  between light and dark themes. It is designed for shortcuts, scripts, and
-  scheduled automation, with typical execution around 10-15 ms on a test
-  system.
+  between light and dark themes. It is designed for shortcuts, scripts,
+  hotkeys, and scheduled automation, completing a switch in a few tens of
+  milliseconds even on a busy desktop.
 
   Features:
   - CLI operations for /toggle, /light, and /dark
-  - Silent, shortcut-friendly direct execution without wrapper scripts
-  - Useful automation flags such as /quiet, /passthru, and /exitcode
-  - Task Scheduler and hotkey friendly invocation
-  - Compatibility handling for apps that ignore standard theme broadcasts
+  - Silent direct execution without requiring wrapper scripts
+  - Automation-friendly flags such as /quiet, /passthru, and /exitcode
+  - Compatibility refresh handling for apps that ignore standard theme broadcasts
   - Multi-monitor taskbar support
   - Windows 10 and Windows 11 support
-  - Installer and portable package variants
+  - Standalone executable and portable ZIP distribution
   - No runtime dependencies
 Moniker: themetoggle
 Tags:
@@ -47,11 +46,11 @@ Tags:
 - portable
 - cli
 ReleaseNotes: |-
-  1.5.7 focuses on release recovery and WinGet publishing:
-  - CI signing verification now checks the expected signer thumbprint and tolerates the known self-signed runner trust error
-  - WinGet publish now restores the CI-generated manifest snapshot and validates the exact InstallerUrl assets from that snapshot
-  - Release validation stays manifest-driven for ThemeToggle.exe and ThemeToggle-Portable.zip
-  - Repository validation now enforces the canonical release and WinGet workflow
+  1.5.7 is a release reliability and packaging update:
+  - No CLI behavior changes
+  - GitHub release signing verification now checks the expected signer thumbprint and handles the known self-signed runner trust error
+  - WinGet submission now restores the CI-generated manifest snapshot and validates the exact published asset URLs
+  - Release validation now stays aligned with the published ThemeToggle.exe and ThemeToggle-Portable.zip artifacts
 
   Observed toggle duration on test systems remains around 10-15 ms.
 

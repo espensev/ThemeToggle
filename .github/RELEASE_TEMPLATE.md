@@ -34,8 +34,8 @@ ThemeToggle.exe /quiet     # Silent (automation)
 
 ## Notes
 
-- Typical execution time: 10-15 ms (test system).
-- WinGet package: `winget install SevIQ.ThemeToggle`
+- Typical execution time: 30-45 ms end-to-end on a busy desktop (test system).
+- WinGet availability follows the corresponding `microsoft/winget-pkgs` PR merge.
 - Full technical notes: https://github.com/espensev/ThemeToggle/blob/main/docs/RELEASE_NOTES.md
 
 ---
@@ -46,3 +46,4 @@ ThemeToggle.exe /quiet     # Silent (automation)
 - `ThemeToggle.exe /?` shows updated CLI options.
 - `tools\validate.bat` passes.
 - WinGet manifests in `winget/` match uploaded release artifacts.
+- The `microsoft/winget-pkgs` PR for this version is tracked. Do not announce `winget install SevIQ.ThemeToggle` until that PR is merged.

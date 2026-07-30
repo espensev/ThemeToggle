@@ -26,6 +26,10 @@
 #   THEMETOGGLE_SIGN_CERT_THUMBPRINT
 #   PFX_PATH / PFX_PASS (fallback)
 #
+# Tagged CI releases are stricter:
+#   - the release PFX must be materialized to THEMETOGGLE_SIGN_PFX_PATH (or PFX_PATH)
+#   - THEMETOGGLE_SIGN_CERT_THUMBPRINT must be present for signer identity verification
+#
 # Prerequisites:
 #   - Visual Studio Build Tools (for cl.exe)
 #   - NSIS (for installer, optional)
@@ -306,8 +310,13 @@ if (Test-TaggedCiRelease) {
         exit 1
     }
 
-    if (-not (Test-SigningConfigured)) {
-        Write-Err "Tagged CI releases require signing credentials."
+    if (-not ($env:THEMETOGGLE_SIGN_PFX_PATH -or $env:PFX_PATH)) {
+        Write-Err "Tagged CI releases require the materialized release PFX at THEMETOGGLE_SIGN_PFX_PATH (or PFX_PATH)."
+        exit 1
+    }
+
+    if (-not $env:THEMETOGGLE_SIGN_CERT_THUMBPRINT) {
+        Write-Err "Tagged CI releases require THEMETOGGLE_SIGN_CERT_THUMBPRINT."
         exit 1
     }
 }
@@ -438,7 +447,7 @@ if ($NoSign) {
     Write-Warn "Signing skipped (-NoSign)"
 } elseif (-not (Test-SigningConfigured)) {
     if ($env:GITHUB_ACTIONS) {
-        Write-Err "No signing credentials configured in CI — set THEMETOGGLE_SIGN_PFX_PATH or THEMETOGGLE_SIGN_CERT_THUMBPRINT"
+        Write-Err "No signing credentials configured in CI — tagged releases must set THEMETOGGLE_SIGN_PFX_PATH and THEMETOGGLE_SIGN_CERT_THUMBPRINT"
         exit 1
     }
     Write-Warn "Signing skipped (no credentials configured)"
@@ -505,7 +514,7 @@ if ($skipInstaller) {
     Write-Warn "Signing skipped (-NoSign)"
 } elseif (-not (Test-SigningConfigured)) {
     if ($env:GITHUB_ACTIONS) {
-        Write-Err "No signing credentials configured in CI — set THEMETOGGLE_SIGN_PFX_PATH or THEMETOGGLE_SIGN_CERT_THUMBPRINT"
+        Write-Err "No signing credentials configured in CI — tagged releases must set THEMETOGGLE_SIGN_PFX_PATH and THEMETOGGLE_SIGN_CERT_THUMBPRINT"
         exit 1
     }
     Write-Warn "Signing skipped (no credentials configured)"

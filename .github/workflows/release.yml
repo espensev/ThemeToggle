@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -67,6 +68,7 @@ jobs:
         env:
           THEMETOGGLE_SIGN_PFX_BASE64: ${{ secrets.THEMETOGGLE_SIGN_PFX_BASE64 }}
           THEMETOGGLE_SIGN_PFX_PASSWORD: ${{ secrets.THEMETOGGLE_SIGN_PFX_PASSWORD }}
+          THEMETOGGLE_SIGN_CERT_THUMBPRINT: ${{ secrets.THEMETOGGLE_SIGN_CERT_THUMBPRINT }}
         run: |
           if (-not $env:THEMETOGGLE_SIGN_PFX_BASE64) {
             Write-Error "THEMETOGGLE_SIGN_PFX_BASE64 secret is not set."
@@ -75,6 +77,11 @@ jobs:
 
           if (-not $env:THEMETOGGLE_SIGN_PFX_PASSWORD) {
             Write-Error "THEMETOGGLE_SIGN_PFX_PASSWORD secret is not set."
+            exit 1
+          }
+
+          if (-not $env:THEMETOGGLE_SIGN_CERT_THUMBPRINT) {
+            Write-Error "THEMETOGGLE_SIGN_CERT_THUMBPRINT secret is not set."
             exit 1
           }
         shell: pwsh
@@ -123,18 +130,18 @@ jobs:
           Write-Host "$file signed by $($signature.SignerCertificate.Subject)"
           Write-Host "$file thumbprint: $actualThumbprint"
 
-          $thumbprintVerified = $false
-          if ($env:EXPECTED_THUMBPRINT) {
-            $expected = ($env:EXPECTED_THUMBPRINT -replace '\s', '').ToUpperInvariant()
-            if ($actualThumbprint -ne $expected) {
-              Write-Error "$file signed by unexpected certificate. Expected thumbprint: $expected, got: $actualThumbprint"
-              exit 1
-            }
-            $thumbprintVerified = $true
-            Write-Host "$file certificate thumbprint verified."
-          } else {
-            Write-Warning "THEMETOGGLE_SIGN_CERT_THUMBPRINT secret not set — skipping signer identity check."
+          $expected = ($env:EXPECTED_THUMBPRINT -replace '\s', '').ToUpperInvariant()
+          if (-not $expected) {
+            Write-Error "EXPECTED_THUMBPRINT is empty. Tagged releases must pin the signing certificate thumbprint."
+            exit 1
           }
+
+          if ($actualThumbprint -ne $expected) {
+            Write-Error "$file signed by unexpected certificate. Expected thumbprint: $expected, got: $actualThumbprint"
+            exit 1
+          }
+          $thumbprintVerified = $true
+          Write-Host "$file certificate thumbprint verified."
 
           if ($status -eq "Valid") {
             Write-Host "$file signature status is Valid."
@@ -154,6 +161,93 @@ jobs:
 
           Write-Error ("{0} signature status is {1}: {2}" -f $file, $status, $statusMessage)
           exit 1
+        shell: pwsh
+
+      - name: Resolve optional Artifact Signing configuration
+        id: artifact_signing
+        env:
+          THEMETOGGLE_ARTIFACT_SIGNING_ENABLED: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_ENABLED }}
+          THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT }}
+          THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
+          THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME }}
+          THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID: ${{ secrets.THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID }}
+          THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID: ${{ secrets.THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID }}
+          THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID: ${{ secrets.THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID }}
+        run: |
+          $enabled = ([string]$env:THEMETOGGLE_ARTIFACT_SIGNING_ENABLED).Trim().ToLowerInvariant()
+          if (-not $enabled) {
+            $enabled = "false"
+          }
+
+          if ($enabled -notin @("true", "false")) {
+            Write-Error "THEMETOGGLE_ARTIFACT_SIGNING_ENABLED must be 'true' or 'false' when set."
+            exit 1
+          }
+
+          if ($enabled -eq "false") {
+            Write-Host "Artifact Signing lane disabled; keeping the self-signed release path only."
+            "enabled=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+
+          $required = @(
+            @{ Name = "THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT"; Value = $env:THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT }
+            @{ Name = "THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME"; Value = $env:THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME }
+            @{ Name = "THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME"; Value = $env:THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME }
+            @{ Name = "THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID"; Value = $env:THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID }
+            @{ Name = "THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID"; Value = $env:THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID }
+            @{ Name = "THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID"; Value = $env:THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID }
+          )
+
+          $missing = @($required | Where-Object { -not ([string]$_.Value).Trim() } | ForEach-Object { $_.Name })
+          if ($missing.Count -gt 0) {
+            Write-Error ("Artifact Signing is enabled, but the following settings are missing: {0}" -f ($missing -join ", "))
+            exit 1
+          }
+
+          Write-Host "Artifact Signing lane enabled."
+          "enabled=true" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Azure login for Artifact Signing
+        if: steps.artifact_signing.outputs.enabled == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.THEMETOGGLE_ARTIFACT_SIGNING_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.THEMETOGGLE_ARTIFACT_SIGNING_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.THEMETOGGLE_ARTIFACT_SIGNING_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Append Artifact Signing signature
+        if: steps.artifact_signing.outputs.enabled == 'true'
+        uses: azure/artifact-signing-action@v1
+        with:
+          endpoint: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ vars.THEMETOGGLE_ARTIFACT_SIGNING_CERT_PROFILE_NAME }}
+          files: ${{ github.workspace }}\ThemeToggle.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          append-signature: true
+          description: ThemeToggle
+          description-url: https://github.com/${{ github.repository }}
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
+          exclude-shared-token-cache-credential: true
+          exclude-visual-studio-credential: true
+          exclude-visual-studio-code-credential: true
+          exclude-azure-cli-credential: false
+          exclude-azure-powershell-credential: true
+          exclude-azure-developer-cli-credential: true
+          exclude-interactive-browser-credential: true
+
+      - name: Refresh portable package after Artifact Signing
+        if: steps.artifact_signing.outputs.enabled == 'true'
+        run: |
+          .\tools\release\refresh-portable-package.ps1 `
+            -Version "${{ steps.version.outputs.VERSION }}" `
+            -RepoSlug "${{ github.repository }}"
         shell: pwsh
 
       - name: Calculate SHA256 hashes
@@ -219,12 +313,13 @@ jobs:
 
             ## Installation
 
-            ### WinGet (Recommended)
+            ### WinGet
             ```
             winget install SevIQ.ThemeToggle
             ```
+            Availability follows the corresponding `microsoft/winget-pkgs` PR merge.
 
-            ### Manual
+            ### Manual (Available Immediately)
             Download the portable ZIP and extract, or use the standalone exe directly.
 
             ## Quick Start
