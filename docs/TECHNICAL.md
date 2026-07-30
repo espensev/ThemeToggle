@@ -2,7 +2,7 @@
 
 ## Performance
 
-Typical execution: 10-15 ms (test system). Broadcasts are asynchronous; the optional stubborn-app kick can be disabled via `/kick=none`.
+Measured on the test system (Windows 11, busy desktop with ~30 top-level app windows), a full toggle spends roughly: <1 ms on registry read/write/flush, 3-11 ms in the uxtheme refresh, 1-2 ms on DWM, 16-18 ms in the global broadcast fan-out, and 5-11 ms kicking stubborn apps — about 25-45 ms in-process, plus ~10 ms of process start. Lighter desktops complete faster. Broadcasts are asynchronous; the stubborn-app kick runs before the global broadcast (enumerating windows after it costs ~10x more, since every window is then busy repainting) and can be disabled via `/kick=none`. `/passthru` prints per-stage timings (`Timing*Ms`).
 
 ## Compatibility
 
@@ -71,4 +71,6 @@ uxtheme ordinal-based APIs (`SetPreferredAppMode`, `FlushMenuThemes`, `RefreshIm
 
 ## Stubborn-app handling
 
-Some applications cache theme state. The kick step explicitly notifies common offenders (Explorer, dialogs, Office/WPF apps, Terminal, Chrome, Firefox). Disable with `/kick=none` for the fastest path.
+Most applications react to the standard broadcast sequence (global `WM_SETTINGCHANGE` "ImmersiveColorSet" + `WM_THEMECHANGED`, DWM attribute, uxtheme refresh). The kick step is a best-effort extra nudge for windows known to miss or defer that sequence: File Explorer and common dialogs (`/kick=core`), plus Chromium/Electron-family and Firefox windows (`/kick=all`, the default). The list is intentionally small and empirical — entries are added only for reproduced misses, not to catalogue every app that caches theme state. Disable with `/kick=none` for the fastest path.
+
+Kicks are best-effort and fully asynchronous: a miss (for example an elevated window blocked by UIPI) never affects the exit code. Exit code 20 (`BroadcastFailed`) reflects only the global `HWND_BROADCAST` sequence. Kick messages must be pointer-free — Windows rejects targeted asynchronous sends of pointer-carrying messages such as a `WM_SETTINGCHANGE` string (`ERROR_MESSAGE_SYNC_ONLY`), which is why the theme-change signal itself travels only via the global broadcast.

@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <winternl.h>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -12,6 +13,7 @@
 #include "RegistryManager.h"
 #include "BroadcastManager.h"
 #include "UxThemeHelper.h"
+#include "StageTimer.h"
 #include "StringUtils.h"
 
 namespace {
@@ -142,6 +144,9 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
         ThemeInfo info{};
         info.exitCode = ExitCode::SuccessNoChange;
 
+        StageTimer stageTimer;
+        StageTimer totalTimer;
+
         // Prevent concurrent instances
         MutexGuard mutex(MUTEX_NAME);
         if (mutex.IsValid()) {
@@ -200,6 +205,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
 
         info.oldSystemValue = currSystem;
         info.oldAppsValue = currApps;
+        info.msRead = stageTimer.LapMs();
 
         // Determine target value
         DWORD newValue;
@@ -231,6 +237,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
                 PrintMessage(msg.str());
             }
 
+            info.msTotal = totalTimer.LapMs();
             return info;
         }
 
@@ -246,6 +253,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
         if (!registry.WriteTheme(newValue, currSystem, hasSystem)) {
             throw ThemeToggleError("Failed writing theme values", ExitCode::RegWriteFailed);
         }
+        info.msWrite = stageTimer.LapMs();
 
         int verifyAttempts = 0;
         auto verifyWrite = [&](DWORD expected) {
@@ -275,6 +283,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
                 PrintMessage("Failed to flush theme values; continuing with verification.", true);
             }
         }
+        info.msFlush = stageTimer.LapMs();
 
         // Verify write; retry once if mismatch
         if (!verifyWrite(newValue)) {
@@ -292,12 +301,15 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
             }
         }
         info.verifyAttempts = verifyAttempts;
+        info.msVerify = stageTimer.LapMs();
 
         // Sync via uxtheme (no-op if APIs unavailable)
         uxtheme.SyncTheme(isDark);
+        info.msUxSync = stageTimer.LapMs();
 
         // Broadcast change and kick stubborn apps
         int kicked = broadcaster.BroadcastThemeChange(isDark, kickPolicy);
+        info.msBroadcast = stageTimer.LapMs();
         info.stubbornAppsKicked = kicked;
         info.broadcastOk = !broadcaster.HadBroadcastFailure();
         if (info.broadcastOk) {
@@ -306,6 +318,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
         else {
             info.exitCode = ExitCode::BroadcastFailed;
         }
+        info.msTotal = totalTimer.LapMs();
 
         if (!quiet) {
             std::ostringstream msg;
@@ -330,7 +343,21 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
             std::cout << "Windows11: " << (isWin11 ? "true" : "false") << std::endl;
             std::cout << "StubbornAppsKicked: " << info.stubbornAppsKicked << std::endl;
             std::cout << "VerifyAttempts: " << info.verifyAttempts << std::endl;
-            
+
+            // Stage timings
+            std::ostringstream timings;
+            timings << std::fixed << std::setprecision(1)
+                << "TimingReadMs: " << info.msRead << "\n"
+                << "TimingWriteMs: " << info.msWrite << "\n"
+                << "TimingFlushMs: " << info.msFlush << "\n"
+                << "TimingVerifyMs: " << info.msVerify << "\n"
+                << "TimingUxSyncMs: " << info.msUxSync << "\n"
+                << "TimingDwmMs: " << broadcaster.LastDwmMs() << "\n"
+                << "TimingGlobalBroadcastMs: " << broadcaster.LastGlobalMs() << "\n"
+                << "TimingKickMs: " << broadcaster.LastKickMs() << "\n"
+                << "TimingTotalMs: " << info.msTotal;
+            std::cout << timings.str() << std::endl;
+
             // UxTheme API diagnostics
             std::cout << "UxThemeLoaded: " << (uxtheme.IsFullyLoaded() ? "true" : "false") << std::endl;
             std::cout << "UxTheme_Ord104: " << (uxtheme.HasRefreshImmersiveColorPolicyState() ? "true" : "false") << std::endl;
@@ -429,7 +456,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
                 kickPolicy = KickPolicy::None;
             }
             else {
-                std::cerr << "Warning: Unknown kick policy '" << value << "'; using default (all)." << std::endl;
+                std::cerr << "Warning: Unknown kick policy '" << value << "'; ignoring." << std::endl;
             }
         }
         else if (arg == "/?" || arg == "-?" || arg == "/help" || arg == "-help" || arg == "/h" || arg == "-h" || arg == "--help") {

@@ -37,6 +37,18 @@ function Ok {
     Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
+function Assert-Matches {
+    param(
+        [string]$Content,
+        [string]$Pattern,
+        [string]$Message
+    )
+
+    if ($Content -notmatch $Pattern) {
+        Fail $Message
+    }
+}
+
 function Get-ManifestInstallerEntries {
     param([string]$InstallerManifestContent)
 
@@ -117,6 +129,7 @@ Ok "Manifest files found"
 $versionYaml = Get-Content $versionYamlPath -Raw
 $installerYaml = Get-Content $installerYamlPath -Raw
 $localeYaml = Get-Content $localeYamlPath -Raw
+$expectedManifestSchemaVersion = "1.10.0"
 
 foreach ($manifest in @(
     @{ Name = "SevIQ.ThemeToggle.yaml"; Content = $versionYaml },
@@ -128,6 +141,23 @@ foreach ($manifest in @(
     }
 }
 Ok "PackageVersion is consistent across manifests ($Version)"
+
+foreach ($manifest in @(
+    @{ Name = "SevIQ.ThemeToggle.yaml"; Content = $versionYaml; ManifestType = "version" },
+    @{ Name = "SevIQ.ThemeToggle.installer.yaml"; Content = $installerYaml; ManifestType = "installer" },
+    @{ Name = "SevIQ.ThemeToggle.locale.en-US.yaml"; Content = $localeYaml; ManifestType = "defaultLocale" }
+)) {
+    Assert-Matches `
+        -Content $manifest.Content `
+        -Pattern ("(?m)^ManifestType:\s*" + [regex]::Escape($manifest.ManifestType) + "\s*$") `
+        -Message "ManifestType mismatch in $($manifest.Name). Expected: $($manifest.ManifestType)"
+
+    Assert-Matches `
+        -Content $manifest.Content `
+        -Pattern ("(?m)^ManifestVersion:\s*" + [regex]::Escape($expectedManifestSchemaVersion) + "\s*$") `
+        -Message "ManifestVersion mismatch in $($manifest.Name). Expected schema version: $expectedManifestSchemaVersion"
+}
+Ok "ManifestVersion is pinned separately from PackageVersion ($expectedManifestSchemaVersion)"
 
 if ($installerYaml -match 'REPLACE_WITH_') {
     Fail "Installer manifest still contains placeholder values."

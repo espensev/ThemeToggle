@@ -1,99 +1,56 @@
 #include "BroadcastManager.h"
+#include "StageTimer.h"
 #include <dwmapi.h>
 
 #pragma comment(lib, "dwmapi.lib")
 
 namespace {
 constexpr DWORD CLASSNAME_BUFFER_SIZE = 256;
-constexpr ULONGLONG KICK_ENUM_CACHE_MS = 1500;
 }
 
-// Stubborn apps
+// Stubborn apps — a small, empirical compatibility list, not a catalogue.
+// Conformant apps already react to the global broadcast sequence; add an entry
+// only for a reproduced miss, with a pointer-free message that demonstrably
+// fixes it. Targeted async delivery rejects pointer payloads such as the
+// WM_SETTINGCHANGE lParam string (ERROR_MESSAGE_SYNC_ONLY), so string-bearing
+// nudges cannot live in this table — the global broadcast carries them.
 // { className, extraMessage, needsDirectPost, prefixMatch, isCore }
 static const StubbornApp STUBBORN_APPS[] = {
-    { L"CabinetWClass",                  WM_THEMECHANGED,  true,  false, true  }, // File Explorer
-    { L"#32770",                          WM_SYSCOLORCHANGE, true,  false, true  }, // Dialogs
-    { L"OpusApp",                         WM_SETTINGCHANGE, true,  false, true  }, // Office apps
-    { L"CASCADIA_HOSTING_WINDOW_CLASS",   WM_SETTINGCHANGE, true,  false, true  }, // Windows Terminal
-    { L"Chrome_WidgetWin_1",              WM_THEMECHANGED,  false, false, false }, // Chrome (optional)
-    { L"MozillaWindowClass",              WM_THEMECHANGED,  false, false, false }, // Firefox (optional)
+    { L"CabinetWClass",      WM_THEMECHANGED,   true,  false, true  }, // File Explorer
+    { L"#32770",             WM_SYSCOLORCHANGE, true,  false, true  }, // Common dialogs
+    { L"Chrome_WidgetWin_1", WM_THEMECHANGED,   false, false, false }, // Chromium/Electron family (Chrome, Edge, VS Code, ...)
+    { L"MozillaWindowClass", WM_THEMECHANGED,   false, false, false }, // Firefox
 };
 
 BroadcastManager::BroadcastManager(bool isWindows11) : isWin11(isWindows11) {}
 
 int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
     hadFailure = false;
+    dwmMs = globalMs = kickMs = 0.0;
 
-    BroadcastSystemWindows(L"ImmersiveColorSet");
+    StageTimer timer;
+
+    // Kick first, while the desktop is still quiet: enumerating windows after
+    // the global broadcast costs ~10x more because every window is already
+    // busy processing the theme change. The registry write and uxtheme sync
+    // have completed by now, so kicked apps re-read the new state either way.
+    int kicked = 0;
+    if (kickPolicy != KickPolicy::None) {
+        kicked = KickStubbornApps(kickPolicy);
+    }
+    kickMs = timer.LapMs();
+
+    // No per-window shell pokes here: the OS rejects targeted async sends of
+    // WM_SETTINGCHANGE (ERROR_MESSAGE_SYNC_ONLY), and the shell windows —
+    // taskbar, tray, secondary-monitor taskbars — are top-level windows that
+    // receive the global broadcast below.
     NotifyDWM(isDark);
+    dwmMs = timer.LapMs();
+
     BroadcastGlobal();
+    globalMs = timer.LapMs();
 
-    if (kickPolicy == KickPolicy::None) return 0;
-
-    // Kick stubborn apps
-    return KickStubbornApps(kickPolicy);
-}
-
-void BroadcastManager::BroadcastToWindow(HWND hwnd, const wchar_t* message) {
-    if (!hwnd || !IsWindow(hwnd)) {
-        return;
-    }
-
-    if (!SendNotifyMessageW(hwnd, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(message))) {
-        hadFailure = true;
-    }
-}
-
-bool BroadcastManager::HasFastTarget(KickPolicy kickPolicy) {
-    // Exact-match classes only (prefix matches require enumeration)
-    const wchar_t* coreClasses[] = {
-        L"CabinetWClass",
-        L"#32770",
-        L"OpusApp",
-        L"CASCADIA_HOSTING_WINDOW_CLASS"
-    };
-
-    for (const auto* cls : coreClasses) {
-        if (FindWindowW(cls, nullptr)) {
-            return true;
-        }
-    }
-
-    if (kickPolicy == KickPolicy::All) {
-        const wchar_t* optionalClasses[] = {
-            L"Chrome_WidgetWin_1",
-            L"MozillaWindowClass"
-        };
-        for (const auto* cls : optionalClasses) {
-            if (FindWindowW(cls, nullptr)) {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-void BroadcastManager::BroadcastSystemWindows(const wchar_t* message) {
-    // Taskbar
-    HWND hwndTaskbar = FindWindowW(L"Shell_TrayWnd", nullptr);
-    BroadcastToWindow(hwndTaskbar, message);
-
-    // Notification area
-    if (hwndTaskbar) {
-        HWND hwndTray = FindWindowExW(hwndTaskbar, nullptr, L"TrayNotifyWnd", nullptr);
-        BroadcastToWindow(hwndTray, message);
-    }
-
-    // System tray (secondary monitors)
-    HWND hwndSysTray = FindWindowW(L"Shell_SecondaryTrayWnd", nullptr);
-    BroadcastToWindow(hwndSysTray, message);
-
-    // Win11 Widgets
-    if (isWin11) {
-        HWND hwndWidgets = FindWindowW(L"Windows.UI.Composition.DesktopWindowContentBridge", nullptr);
-        BroadcastToWindow(hwndWidgets, message);
-    }
+    return kicked;
 }
 
 void BroadcastManager::NotifyDWM(bool isDark) {
@@ -135,12 +92,12 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     if (!IsWindowVisible(hwnd)) return TRUE;
 
     auto* ctx = reinterpret_cast<EnumWindowsContext*>(lParam);
-    if (!ctx || !ctx->manager) return TRUE;
+    if (!ctx) return TRUE;
 
     wchar_t className[CLASSNAME_BUFFER_SIZE] = {};
     if (!GetClassNameW(hwnd, className, CLASSNAME_BUFFER_SIZE)) return TRUE;
 
-    // Linear scan (N=7)
+    // Linear scan (small fixed table)
     const StubbornApp* match = nullptr;
     for (const auto& app : STUBBORN_APPS) {
         if (!app.className) continue;
@@ -158,20 +115,16 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
         return TRUE;
     }
 
-    LPARAM msgParam = (match->extraMessage == WM_SETTINGCHANGE)
-        ? reinterpret_cast<LPARAM>(L"ImmersiveColorSet")
-        : 0;
+    // Pointer-free messages only (see table comment): posted for queue-path
+    // delivery, or sent async. Kicks are best-effort by design, so a miss
+    // (e.g. an elevated window blocked by UIPI) never fails the toggle.
+    bool delivered = match->needsDirectPost
+        ? PostMessageW(hwnd, match->extraMessage, 0, 0) != 0
+        : SendNotifyMessageW(hwnd, match->extraMessage, 0, 0) != 0;
 
-    // Delivery method selection
-    bool success = match->needsDirectPost
-        ? PostMessageW(hwnd, match->extraMessage, 0, msgParam)
-        : SendNotifyMessageW(hwnd, match->extraMessage, 0, msgParam);
-
-    if (!success) {
-        ctx->manager->hadFailure = true;
+    if (delivered) {
+        ctx->kickCount++;
     }
-
-    ctx->kickCount++;
     return TRUE;
 }
 
@@ -179,17 +132,7 @@ int BroadcastManager::KickStubbornApps(KickPolicy kickPolicy) {
     // Skip in remote sessions
     if (GetSystemMetrics(SM_REMOTESESSION)) return 0;
 
-    const ULONGLONG now = GetTickCount64();
-    if (kickPolicy == lastKickPolicy) {
-        if (!HasFastTarget(kickPolicy) && !lastFoundTargets && (now - lastEnumTick) < KICK_ENUM_CACHE_MS) {
-            return 0;
-        }
-    }
-
-    EnumWindowsContext ctx{ this, 0, kickPolicy };
+    EnumWindowsContext ctx{ 0, kickPolicy };
     EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&ctx));
-    lastFoundTargets = ctx.kickCount > 0;
-    lastEnumTick = now;
-    lastKickPolicy = kickPolicy;
     return ctx.kickCount;
 }

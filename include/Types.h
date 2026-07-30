@@ -41,6 +41,15 @@ struct ThemeInfo {
     ExitCode exitCode = ExitCode::SuccessNoChange;
     int stubbornAppsKicked = 0;
     int verifyAttempts = 0;
+
+    // Stage timings in milliseconds (captured every run, printed with /passthru)
+    double msRead = 0.0;
+    double msWrite = 0.0;
+    double msFlush = 0.0;
+    double msVerify = 0.0;
+    double msUxSync = 0.0;
+    double msBroadcast = 0.0;
+    double msTotal = 0.0;
 };
 
 // RAII registry key
