@@ -142,9 +142,32 @@ function Try-SignFile {
 
     $signArgs = @("sign", "/fd", "SHA256", "/tr", $timestampUrl, "/td", "SHA256", "/d", $description)
 
-    $thumbprint = $env:THEMETOGGLE_SIGN_CERT_THUMBPRINT
-    if ($thumbprint) {
-        $thumbprint = $thumbprint -replace "\s", ""
+    # Prefer the PFX file when one is configured: in CI the materialized
+    # release PFX on disk is the signing credential, while
+    # THEMETOGGLE_SIGN_CERT_THUMBPRINT is the signer identity pin used at the
+    # verification step (the cert is not in the runner's store, so
+    # thumbprint/store signing would find no certificate there).
+    # Store-based signing via thumbprint is the local path when no PFX is set.
+    $pfxPath = $env:THEMETOGGLE_SIGN_PFX_PATH
+    if (-not $pfxPath) { $pfxPath = $env:PFX_PATH }
+
+    if ($pfxPath) {
+        if (-not (Test-Path $pfxPath)) {
+            Write-Err "PFX not found: $pfxPath"
+            return $false
+        }
+
+        $password = $env:THEMETOGGLE_SIGN_PFX_PASSWORD
+        if (-not $password) { $password = $env:PFX_PASS }
+        if (-not $password) {
+            $secure = Read-Host "Enter PFX password" -AsSecureString
+            $password = Get-PlainTextFromSecureString $secure
+        }
+
+        $signArgs += @("/f", $pfxPath, "/p", $password)
+    }
+    elseif ($env:THEMETOGGLE_SIGN_CERT_THUMBPRINT) {
+        $thumbprint = $env:THEMETOGGLE_SIGN_CERT_THUMBPRINT -replace "\s", ""
         $store = $env:THEMETOGGLE_SIGN_STORE
         if (-not $store) { $store = "My" }
 
@@ -159,25 +182,8 @@ function Try-SignFile {
         if ($useMachineStore) { $signArgs += "/sm" }
     }
     else {
-        $pfxPath = $env:THEMETOGGLE_SIGN_PFX_PATH
-        if (-not $pfxPath) { $pfxPath = $env:PFX_PATH }
-        if (-not $pfxPath) {
-            Write-Warn "No signing credentials configured"
-            return $false
-        }
-        if (-not (Test-Path $pfxPath)) {
-            Write-Err "PFX not found: $pfxPath"
-            return $false
-        }
-
-        $password = $env:THEMETOGGLE_SIGN_PFX_PASSWORD
-        if (-not $password) { $password = $env:PFX_PASS }
-        if (-not $password) {
-            $secure = Read-Host "Enter PFX password" -AsSecureString
-            $password = Get-PlainTextFromSecureString $secure
-        }
-
-        $signArgs += @("/f", $pfxPath, "/p", $password)
+        Write-Warn "No signing credentials configured"
+        return $false
     }
 
     & $signtool @signArgs $FilePath
