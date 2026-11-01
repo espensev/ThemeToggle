@@ -1,5 +1,6 @@
 # Documentation
 
+- [USAGE.md](USAGE.md) — installation, command options and automation results; also packaged as README.md
 - [DEVELOPMENT.md](DEVELOPMENT.md) — local build, tooling, benchmarking
 - [RELEASE.md](RELEASE.md) — release pipeline and WinGet publishing
 - [TECHNICAL.md](TECHNICAL.md) — architecture, registry keys, project structure

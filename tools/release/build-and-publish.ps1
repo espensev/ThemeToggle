@@ -555,7 +555,7 @@ if ($NoZip) {
 
     Copy-Item "$repoRoot\ThemeToggle.exe"              $deployDir
     Copy-Item "$repoRoot\LICENSE.txt"                   $deployDir
-    Copy-Item "$repoRoot\README.md"                     $deployDir
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/USAGE.md') -Destination (Join-Path $deployDir 'README.md')
     Copy-Item "$repoRoot\setup.bat"                     $deployDir
     Copy-Item "$repoRoot\uninstall.bat"                 $deployDir
     Copy-Item "$repoRoot\Resources\ThemeToggle.ico"     "$deployDir\Resources\"
