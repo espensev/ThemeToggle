@@ -18,8 +18,12 @@ class BroadcastManager {
 public:
     explicit BroadcastManager(bool isWindows11);
 
-    // Broadcast theme change
-    int BroadcastThemeChange(bool isDark, KickPolicy kickPolicy = KickPolicy::All);
+    // Broadcast theme change. sendThemeChanged=false (/nothemechanged) omits
+    // every WM_THEMECHANGED send — global broadcast and kicks alike — so the
+    // light/dark switch is signalled only via WM_SETTINGCHANGE, as Windows
+    // Settings does. Diagnostic switch for issue #17.
+    int BroadcastThemeChange(bool isDark, KickPolicy kickPolicy = KickPolicy::All,
+        bool sendThemeChanged = true);
 
     // Last run failure status
     bool HadBroadcastFailure() const { return hadFailure; }
@@ -36,17 +40,18 @@ private:
     double kickMs = 0.0;
 
     // Broadcasts
-    void BroadcastGlobal();
+    void BroadcastGlobal(bool sendThemeChanged);
     void NotifyDWM(bool isDark);
 
     // Stubborn apps
-    int KickStubbornApps(KickPolicy kickPolicy);
+    int KickStubbornApps(KickPolicy kickPolicy, bool sendThemeChanged);
     static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam);
 
     // Enum context
     struct EnumWindowsContext {
         int kickCount = 0;
         KickPolicy kickPolicy = KickPolicy::All;
+        bool sendThemeChanged = true;
     };
 
     bool hadFailure = false;
