@@ -64,6 +64,7 @@ private:
     bool quiet;
     bool passThru;
     bool noFlush;
+    bool sendThemeChanged;
     KickPolicy kickPolicy;
     HANDLE hConsole = nullptr;
     bool isWin11;
@@ -118,10 +119,12 @@ private:
     }
 
 public:
-WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPolicy = KickPolicy::All, bool noFlush = false)
+WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPolicy = KickPolicy::All,
+    bool noFlush = false, bool sendThemeChanged = true)
     : quiet(quiet)
     , passThru(passThru)
     , noFlush(noFlush)
+    , sendThemeChanged(sendThemeChanged)
     , kickPolicy(kickPolicy)
     , isWin11(IsWindows11OrGreater())
     , broadcaster(isWin11) {
@@ -308,7 +311,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
         info.msUxSync = stageTimer.LapMs();
 
         // Broadcast change and kick stubborn apps
-        int kicked = broadcaster.BroadcastThemeChange(isDark, kickPolicy);
+        int kicked = broadcaster.BroadcastThemeChange(isDark, kickPolicy, sendThemeChanged);
         info.msBroadcast = stageTimer.LapMs();
         info.stubbornAppsKicked = kicked;
         info.broadcastOk = !broadcaster.HadBroadcastFailure();
@@ -342,6 +345,7 @@ WindowsThemeToggler(bool quiet = false, bool passThru = false, KickPolicy kickPo
             std::cout << "BroadcastOk: " << (info.broadcastOk ? "true" : "false") << std::endl;
             std::cout << "Windows11: " << (isWin11 ? "true" : "false") << std::endl;
             std::cout << "StubbornAppsKicked: " << info.stubbornAppsKicked << std::endl;
+            std::cout << "ThemeChangedSent: " << (sendThemeChanged ? "true" : "false") << std::endl;
             std::cout << "VerifyAttempts: " << info.verifyAttempts << std::endl;
 
             // Stage timings
@@ -382,6 +386,7 @@ void PrintUsage() {
         "  /kick=none   Do not kick stubborn apps\n"
         "  /nokick      Alias for /kick=none\n"
         "  /noflush     Skip registry flush (best-effort)\n"
+        "  /nothemechanged  Do not send WM_THEMECHANGED (diagnostic)\n"
         "  /? /help /h  Show this help\n"
         "  (All options also accept '-' or '--' prefixes)\n\n"
         "Exit Codes (when /exitcode is used):\n"
@@ -404,6 +409,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     bool passThru = false;
     bool asExitCode = false;
     bool noFlush = false;
+    bool sendThemeChanged = true;
     KickPolicy kickPolicy = KickPolicy::All;
     std::vector<std::string> unknownArgs;
 
@@ -439,6 +445,9 @@ int RunThemeToggleCli(int argc, char* argv[]) {
         }
         else if (arg == "/noflush" || arg == "-noflush" || arg == "--noflush") {
             noFlush = true;
+        }
+        else if (arg == "/nothemechanged" || arg == "-nothemechanged" || arg == "--nothemechanged") {
+            sendThemeChanged = false;
         }
         else if (arg == "/nokick" || arg == "-nokick" || arg == "--nokick") {
             kickPolicy = KickPolicy::None;
@@ -482,7 +491,7 @@ int RunThemeToggleCli(int argc, char* argv[]) {
     }
 
     try {
-        WindowsThemeToggler toggler(quiet, passThru, kickPolicy, noFlush);
+        WindowsThemeToggler toggler(quiet, passThru, kickPolicy, noFlush, sendThemeChanged);
         ThemeInfo info = toggler.SetWindowsTheme(forceLight, forceDark);
         toggler.PrintThemeInfo(info);
 
