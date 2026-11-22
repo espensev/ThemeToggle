@@ -18,7 +18,7 @@ Installers:
 - Architecture: x64
   InstallerType: zip
   InstallerUrl: https://github.com/espensev/ThemeToggle/releases/download/v1.6.0/ThemeToggle-Portable.zip
-  InstallerSha256: 05C8BE148B24E4CDEDE93474D2B18E3D7F27BA73C5180BD093DA6E176C5E653B
+  InstallerSha256: 26C2C776CFAED41A9B8CD6C8E09C21CBE54AC2DE4D667BDD1176781CC647F9E7
   NestedInstallerType: portable
   NestedInstallerFiles:
   - RelativeFilePath: ThemeToggle.exe
