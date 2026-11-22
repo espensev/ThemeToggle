@@ -79,6 +79,7 @@ dist\launchers\ThemeToggle.ps1 -Dark     # Force dark
 | `/kick=none` | Do not kick stubborn apps |
 | `/nokick` | Alias for `/kick=none` |
 | `/noflush` | Skip registry flush (best-effort) |
+| `/nothemechanged` | Do not send `WM_THEMECHANGED` (diagnostic; see [Technical Notes](docs/TECHNICAL.md#isolating-an-app-crash-after-a-toggle)) |
 | `/?` or `/help` | Show usage |
 
 All options also accept `-` or `--` prefixes.

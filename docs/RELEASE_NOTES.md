@@ -6,7 +6,7 @@ Newest entry at the top.
 
 ## Unreleased
 
-- No unreleased notes yet.
+- Added diagnostic `/nothemechanged`: omits every `WM_THEMECHANGED` send (global broadcast and the Explorer/Chromium/Firefox kicks), so the light/dark switch is signalled only by `WM_SETTINGCHANGE` — the same way Windows Settings does it. Use it to isolate app crashes that follow a toggle (issue #17, Opera). `/passthru` reports `ThemeChangedSent`. Default behavior is unchanged.
 
 ---
 

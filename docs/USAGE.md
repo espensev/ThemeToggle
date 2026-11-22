@@ -38,6 +38,7 @@ change the current user's Windows theme; `/?` displays help.
 | `/kick=core` | Refresh the core application set |
 | `/kick=none`, `/nokick` | Skip application refresh kicks |
 | `/noflush` | Skip the best-effort registry flush |
+| `/nothemechanged` | Diagnostic: signal the switch only via `WM_SETTINGCHANGE`, never `WM_THEMECHANGED` |
 | `/?`, `/help`, `/h` | Display help |
 
 Options also accept `-` or `--` prefixes. For automation, select `/light` or

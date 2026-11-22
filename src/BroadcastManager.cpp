@@ -24,7 +24,7 @@ static const StubbornApp STUBBORN_APPS[] = {
 
 BroadcastManager::BroadcastManager(bool isWindows11) : isWin11(isWindows11) {}
 
-int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
+int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy, bool sendThemeChanged) {
     hadFailure = false;
     dwmMs = globalMs = kickMs = 0.0;
 
@@ -36,7 +36,7 @@ int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
     // have completed by now, so kicked apps re-read the new state either way.
     int kicked = 0;
     if (kickPolicy != KickPolicy::None) {
-        kicked = KickStubbornApps(kickPolicy);
+        kicked = KickStubbornApps(kickPolicy, sendThemeChanged);
     }
     kickMs = timer.LapMs();
 
@@ -47,7 +47,7 @@ int BroadcastManager::BroadcastThemeChange(bool isDark, KickPolicy kickPolicy) {
     NotifyDWM(isDark);
     dwmMs = timer.LapMs();
 
-    BroadcastGlobal();
+    BroadcastGlobal(sendThemeChanged);
     globalMs = timer.LapMs();
 
     return kicked;
@@ -60,12 +60,15 @@ void BroadcastManager::NotifyDWM(bool isDark) {
         &useDarkMode, sizeof(useDarkMode));
 }
 
-void BroadcastManager::BroadcastGlobal() {
+void BroadcastManager::BroadcastGlobal(bool sendThemeChanged) {
     LPARAM immersiveParam = reinterpret_cast<LPARAM>(L"ImmersiveColorSet");
     if (!SendNotifyMessageW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, immersiveParam)) {
         hadFailure = true;
     }
-    if (!SendNotifyMessageW(HWND_BROADCAST, WM_THEMECHANGED, 0, 0)) {
+    // WM_THEMECHANGED tells every window its theme handles are invalid. The
+    // OS itself sends it only for visual-style changes, not for a light/dark
+    // switch; /nothemechanged skips it to isolate app crashes (issue #17).
+    if (sendThemeChanged && !SendNotifyMessageW(HWND_BROADCAST, WM_THEMECHANGED, 0, 0)) {
         hadFailure = true;
     }
 
@@ -115,6 +118,10 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
         return TRUE;
     }
 
+    if (!ctx->sendThemeChanged && match->extraMessage == WM_THEMECHANGED) {
+        return TRUE;
+    }
+
     // Pointer-free messages only (see table comment): posted for queue-path
     // delivery, or sent async. Kicks are best-effort by design, so a miss
     // (e.g. an elevated window blocked by UIPI) never fails the toggle.
@@ -128,11 +135,11 @@ BOOL CALLBACK BroadcastManager::EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
-int BroadcastManager::KickStubbornApps(KickPolicy kickPolicy) {
+int BroadcastManager::KickStubbornApps(KickPolicy kickPolicy, bool sendThemeChanged) {
     // Skip in remote sessions
     if (GetSystemMetrics(SM_REMOTESESSION)) return 0;
 
-    EnumWindowsContext ctx{ 0, kickPolicy };
+    EnumWindowsContext ctx{ 0, kickPolicy, sendThemeChanged };
     EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&ctx));
     return ctx.kickCount;
 }

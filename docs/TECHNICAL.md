@@ -28,6 +28,7 @@ Measured on the test system (Windows 11, busy desktop with ~30 top-level app win
 | `/exitcode` | Return status as exit code |
 | `/kick=all\|core\|none` | Control stubborn-app notifications |
 | `/noflush` | Skip registry flush |
+| `/nothemechanged` | Omit every `WM_THEMECHANGED` send (diagnostic) |
 | `/?`, `/help` | Show usage |
 
 All options accept `-` or `--` prefixes.
@@ -74,3 +75,13 @@ uxtheme ordinal-based APIs (`SetPreferredAppMode`, `FlushMenuThemes`, `RefreshIm
 Most applications react to the standard broadcast sequence (global `WM_SETTINGCHANGE` "ImmersiveColorSet" + `WM_THEMECHANGED`, DWM attribute, uxtheme refresh). The kick step is a best-effort extra nudge for windows known to miss or defer that sequence: File Explorer and common dialogs (`/kick=core`), plus Chromium/Electron-family and Firefox windows (`/kick=all`, the default). The list is intentionally small and empirical — entries are added only for reproduced misses, not to catalogue every app that caches theme state. Disable with `/kick=none` for the fastest path.
 
 Kicks are best-effort and fully asynchronous: a miss (for example an elevated window blocked by UIPI) never affects the exit code. Exit code 20 (`BroadcastFailed`) reflects only the global `HWND_BROADCAST` sequence. Kick messages must be pointer-free — Windows rejects targeted asynchronous sends of pointer-carrying messages such as a `WM_SETTINGCHANGE` string (`ERROR_MESSAGE_SYNC_ONLY`), which is why the theme-change signal itself travels only via the global broadcast.
+
+### Isolating an app crash after a toggle
+
+ThemeToggle sends `WM_THEMECHANGED` twice to Chromium/Electron and Firefox windows: once as a kick and once in the global broadcast. Windows itself sends that message only for visual-style changes. A light/dark switch from Windows Settings is signalled with `WM_SETTINGCHANGE` "ImmersiveColorSet" alone. If an app crashes after a toggle (for example Opera, issue #17), narrow it down with the app open:
+
+1. Switch the theme in Windows Settings. If the app also crashes there, the fault is not specific to ThemeToggle.
+2. `ThemeToggle.exe /toggle /kick=core`: no direct kick to Chromium/Firefox windows, global broadcast unchanged.
+3. `ThemeToggle.exe /toggle /nothemechanged`: no `WM_THEMECHANGED` anywhere. Only `WM_SETTINGCHANGE`, DWM and uxtheme signals are sent, which matches what Windows Settings does.
+
+Collect crash evidence alongside each run: the app's own crash list (for Chromium-based browsers, `<browser>://crashes`) and Event Viewer → Windows Logs → Application, Event ID 1000 for the app's executable, which names the faulting module.
